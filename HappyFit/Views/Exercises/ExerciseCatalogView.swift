@@ -78,14 +78,18 @@ struct ArchivedExercisesView: View {
     }
 }
 
+#if DEBUG
 #Preview("Catalogo") {
     NavigationStack { ExerciseCatalogView() }
         .modelContainer(PreviewData.container())
 }
+#endif
 
+#if DEBUG
 #Preview("Archiviati") {
     let container = PreviewData.container()
     try? WorkoutService(context: container.mainContext).archiveExercise(PreviewData.exercise(in: container))
     return NavigationStack { ArchivedExercisesView() }
         .modelContainer(container)
 }
+#endif

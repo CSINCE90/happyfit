@@ -50,25 +50,37 @@ struct ExerciseCard: View {
                 )
             }
 
-            HStack {
-                Button {
-                    viewModel.addSet(to: item)
-                } label: {
-                    Label("Serie", systemImage: "plus")
-                        .frame(minHeight: 44)
-                }
-                .buttonStyle(.bordered)
-
-                Spacer()
-
-                Button(action: onEditRest) {
-                    Label(Formatting.rest(item.restSeconds), systemImage: "timer")
-                        .frame(minHeight: 44)
-                }
-                .buttonStyle(.bordered)
+            // Affiancati se c'è spazio, altrimenti uno sotto l'altro.
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 12) { addSetButton; Spacer(minLength: 12); restButton }
+                VStack(spacing: 12) { addSetButton; restButton }
             }
         }
-        .padding()
+        .padding(12)
         .background(.background.secondary, in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    private var addSetButton: some View {
+        Button {
+            viewModel.addSet(to: item)
+        } label: {
+            Label("Serie", systemImage: "plus")
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+                .frame(minHeight: 44)
+                .padding(.horizontal, 8)
+        }
+        .buttonStyle(.bordered)
+    }
+
+    private var restButton: some View {
+        Button(action: onEditRest) {
+            Label(Formatting.rest(item.restSeconds), systemImage: "timer")
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+                .frame(minHeight: 44)
+                .padding(.horizontal, 8)
+        }
+        .buttonStyle(.bordered)
     }
 }

@@ -23,7 +23,9 @@ extension DebugLaunch {
         func visit(_ view: UIView) {
             if let scroll = view as? UIScrollView, scroll.bounds.height > 100 {
                 let inset = scroll.adjustedContentInset
-                let y = max(scroll.contentSize.height + inset.bottom - scroll.bounds.height, -inset.top)
+                let maxY = max(scroll.contentSize.height + inset.bottom - scroll.bounds.height, -inset.top)
+                // A passi di una schermata: le liste "pigre" stimano l'altezza e non vanno saltate in un colpo.
+                let y = min(max(scroll.contentOffset.y, -inset.top) + scroll.bounds.height * 0.8, maxY)
                 scroll.setContentOffset(CGPoint(x: 0, y: y), animated: false)
             }
             view.subviews.forEach(visit)
@@ -39,7 +41,7 @@ struct DebugScreenView: View {
 
     init(name: String) {
         self.name = name
-        self.container = PreviewData.container(openSession: ["home-open", "active", "active-timer", "number-entry"].contains(name))
+        self.container = PreviewData.container(openSession: ["home-open", "active", "active-timer", "number-entry", "reps-entry"].contains(name))
     }
 
     var body: some View {
@@ -47,7 +49,7 @@ struct DebugScreenView: View {
             .modelContainer(container)
             .task {
                 guard DebugLaunch.scrollsToEnd else { return }
-                for delay in [1.0, 0.8, 0.8, 0.8, 0.8] {
+                for delay in [1.0] + Array(repeating: 0.4, count: 24) {
                     try? await Task.sleep(for: .seconds(delay))
                     DebugLaunch.scrollAllToEnd()
                 }
@@ -73,6 +75,10 @@ struct DebugScreenView: View {
             ExerciseEditSheet(exercise: PreviewData.exercise(in: container), viewModel: ExerciseCatalogViewModel(context: container.mainContext))
         case "number-entry":
             NumberEntrySheet(target: NumberTarget(entry: PreviewData.openSession(in: container).sortedExercises[0].sortedSets[0], isWeight: true)) { _ in }
+        case "reps-entry":
+            NumberEntrySheet(target: NumberTarget(entry: PreviewData.openSession(in: container).sortedExercises[0].sortedSets[0], isWeight: false)) { _ in }
+        case "exercise-new":
+            ExerciseEditSheet(exercise: nil, viewModel: ExerciseCatalogViewModel(context: container.mainContext))
         case "set-correction":
             SetCorrectionSheet(entry: PreviewData.closedSession(in: container).sortedExercises[0].sortedSets[0]) { _, _ in }
         case "picker": ExercisePickerView { _ in }

@@ -47,7 +47,9 @@ struct SettingsView: View {
     }
 }
 
+#if DEBUG
 #Preview {
     SettingsView()
         .modelContainer(PreviewData.container())
 }
+#endif

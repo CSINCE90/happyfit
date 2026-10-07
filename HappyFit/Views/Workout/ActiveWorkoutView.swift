@@ -16,10 +16,12 @@ struct ActiveWorkoutView: View {
         _viewModel = State(initialValue: ActiveWorkoutViewModel(session: session, context: context))
     }
 
-    /// Per anteprime e collaudo: usa un ViewModel già preparato (es. con il timer attivo).
+    #if DEBUG
+    /// Solo collaudo: usa un ViewModel già preparato (es. con il timer attivo).
     init(viewModel: ActiveWorkoutViewModel) {
         _viewModel = State(initialValue: viewModel)
     }
+    #endif
 
     var body: some View {
         NavigationStack {
@@ -123,8 +125,10 @@ struct NumberTarget: Identifiable {
     let isWeight: Bool
 }
 
+#if DEBUG
 #Preview {
     let container = PreviewData.container(openSession: true)
     return ActiveWorkoutView(session: PreviewData.openSession(in: container), context: container.mainContext)
         .modelContainer(container)
 }
+#endif

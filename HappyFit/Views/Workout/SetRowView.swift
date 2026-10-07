@@ -1,9 +1,8 @@
 import SwiftUI
 
-/// Riga di una serie: tipo, peso, ripetizioni e spunta. Controlli grandi per l'uso con una mano.
+/// Riga di una serie su due righe: sopra tipo e spunta, sotto peso e ripetizioni.
+/// Pensata per l'uso con una mano: aree di tocco ampie e nessun elemento fuori schermo.
 struct SetRowView: View {
-    @Environment(\.dynamicTypeSize) private var typeSize
-
     let index: Int
     let entry: SetEntry
     let onToggle: () -> Void
@@ -15,29 +14,36 @@ struct SetRowView: View {
     let onDelete: () -> Void
 
     var body: some View {
-        let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8)) : AnyLayout(HStackLayout(spacing: 8))
-        layout {
-            HStack(spacing: 8) {
+        VStack(spacing: 10) {
+            HStack(spacing: 12) {
                 typeMenu
-                if typeSize.isAccessibilitySize { Spacer() }
-                if typeSize.isAccessibilitySize { checkButton }
+                checkButton
             }
-            stepperControl(
-                value: Formatting.weight(entry.weightKg), unit: "kg",
-                minus: { onWeight(-1) }, plus: { onWeight(1) }, edit: onEditWeight,
-                label: "Peso"
-            )
-            stepperControl(
-                value: "\(entry.reps)", unit: "rip",
-                minus: { onReps(-1) }, plus: { onReps(1) }, edit: onEditReps,
-                label: "Ripetizioni"
-            )
-            if !typeSize.isAccessibilitySize { checkButton }
+            // Affiancati se c'è spazio, altrimenti uno sotto l'altro (testo molto grande).
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 16) { weightControl; repsControl }
+                VStack(spacing: 10) { weightControl; repsControl }
+            }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
         .opacity(entry.isCompleted ? 0.75 : 1)
     }
 
+    private var weightControl: some View {
+        ValueControl(
+            value: Formatting.weight(entry.weightKg), unit: "kg", label: "Peso",
+            onMinus: { onWeight(-1) }, onPlus: { onWeight(1) }, onEdit: onEditWeight
+        )
+    }
+
+    private var repsControl: some View {
+        ValueControl(
+            value: "\(entry.reps)", unit: "rip", label: "Ripetizioni",
+            onMinus: { onReps(-1) }, onPlus: { onReps(1) }, onEdit: onEditReps
+        )
+    }
+
+    /// Badge con numero e tipo: larghezza flessibile, il testo può andare a capo ma non si tronca.
     private var typeMenu: some View {
         Menu {
             Picker("Tipo", selection: Binding(get: { entry.type }, set: onType)) {
@@ -45,46 +51,86 @@ struct SetRowView: View {
             }
             Button("Elimina serie", systemImage: "trash", role: .destructive, action: onDelete)
         } label: {
-            VStack(spacing: 0) {
-                Text("\(index)").font(.headline)
-                Text(entry.type.shortName).font(.caption2).foregroundStyle(.secondary)
-            }
-            .frame(width: 40, height: 44)
-            .background(entry.type.color.opacity(0.2), in: RoundedRectangle(cornerRadius: 10))
-        }
-        .accessibilityLabel("Serie \(index), \(entry.type.displayName)")
-    }
-
-    private func stepperControl(value: String, unit: String, minus: @escaping () -> Void, plus: @escaping () -> Void, edit: @escaping () -> Void, label: String) -> some View {
-        HStack(spacing: 4) {
-            Button(action: minus) { Image(systemName: "minus").frame(width: 40, height: 48) }
-                .buttonStyle(.bordered)
-                .accessibilityLabel("\(label) meno")
-            Button(action: edit) {
-                VStack(spacing: 0) {
-                    Text(value).font(.title3.monospacedDigit().bold())
-                    Text(unit).font(.caption2).foregroundStyle(.secondary)
+            HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("Serie \(index)").font(.headline)
+                    Text(entry.type.displayName).font(.caption).foregroundStyle(.secondary)
                 }
-                .frame(minWidth: 44)
-                .frame(height: 48)
+                .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.up.chevron.down").font(.caption).foregroundStyle(.secondary)
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("\(label) \(value) \(unit)")
-            Button(action: plus) { Image(systemName: "plus").frame(width: 40, height: 48) }
-                .buttonStyle(.bordered)
-                .accessibilityLabel("\(label) più")
+            .padding(.horizontal, 12)
+            .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
+            .background(entry.type.color.opacity(0.18), in: RoundedRectangle(cornerRadius: 12))
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Serie \(index), \(entry.type.displayName)")
     }
 
     private var checkButton: some View {
         Button(action: onToggle) {
             Image(systemName: entry.isCompleted ? "checkmark.circle.fill" : "circle")
-                .font(.system(size: 36))
+                .font(.system(size: 40))
                 .foregroundStyle(entry.isCompleted ? Color.green : Color.secondary)
-                .frame(width: 52, height: 52)
+                .frame(width: 56, height: 56)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(entry.isCompleted ? "Serie completata" : "Completa serie")
+    }
+}
+
+/// Controllo − valore + (peso o ripetizioni): pulsanti da almeno 44 pt, valore al centro che apre il tastierino.
+struct ValueControl: View {
+    let value: String
+    let unit: String
+    let label: String
+    let onMinus: () -> Void
+    let onPlus: () -> Void
+    let onEdit: () -> Void
+
+    var body: some View {
+        HStack(spacing: 6) {
+            StepButton(systemImage: "minus", label: "\(label) meno", action: onMinus)
+            Button(action: onEdit) {
+                VStack(spacing: 0) {
+                    Text(value)
+                        .font(.title3.monospacedDigit().bold())
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                    Text(unit).font(.caption2).foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, minHeight: 48)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("\(label) \(value) \(unit)")
+            StepButton(systemImage: "plus", label: "\(label) più", action: onPlus)
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+/// Pulsante tondo − / + con area di tocco di 48 × 48 pt.
+struct StepButton: View {
+    let systemImage: String
+    let label: String
+    var isEnabled = true
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.headline)
+                .frame(width: 48, height: 48)
+                .background(.fill.tertiary, in: Circle())
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!isEnabled)
+        .opacity(isEnabled ? 1 : 0.35)
+        .accessibilityLabel(label)
     }
 }
 

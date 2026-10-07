@@ -114,8 +114,10 @@ struct SetCorrectionSheet: View {
     }
 }
 
+#if DEBUG
 #Preview {
     let container = PreviewData.container()
     return NavigationStack { SessionDetailView(session: PreviewData.closedSession(in: container)) }
         .modelContainer(container)
 }
+#endif

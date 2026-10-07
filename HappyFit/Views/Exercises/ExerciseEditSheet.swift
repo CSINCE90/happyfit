@@ -7,6 +7,7 @@ struct ExerciseEditSheet: View {
     let exercise: Exercise?
     let viewModel: ExerciseCatalogViewModel
 
+    @FocusState private var nameFocused: Bool
     @State private var name: String
     @State private var group: MuscleGroup?
     @State private var customRest: Bool
@@ -27,6 +28,7 @@ struct ExerciseEditSheet: View {
                 Section("Nome") {
                     TextField("Nome esercizio", text: $name)
                         .textInputAutocapitalization(.sentences)
+                        .focused($nameFocused)
                 }
                 Section("Gruppo muscolare") {
                     Picker("Gruppo", selection: $group) {
@@ -58,7 +60,11 @@ struct ExerciseEditSheet: View {
                     Button("Salva", action: save).bold()
                 }
             }
-            .onAppear { viewModel.errorMessage = nil }
+            .onAppear {
+                viewModel.errorMessage = nil
+                // Nuovo esercizio: si scrive subito il nome.
+                if exercise == nil { nameFocused = true }
+            }
         }
     }
 
@@ -74,14 +80,18 @@ struct ExerciseEditSheet: View {
     }
 }
 
+#if DEBUG
 #Preview("Nuovo") {
     let container = PreviewData.container()
     return ExerciseEditSheet(exercise: nil, viewModel: ExerciseCatalogViewModel(context: container.mainContext))
         .modelContainer(container)
 }
+#endif
 
+#if DEBUG
 #Preview("Modifica") {
     let container = PreviewData.container()
     return ExerciseEditSheet(exercise: PreviewData.exercise(in: container), viewModel: ExerciseCatalogViewModel(context: container.mainContext))
         .modelContainer(container)
 }
+#endif

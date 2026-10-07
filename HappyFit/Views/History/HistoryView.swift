@@ -50,7 +50,9 @@ struct HistoryView: View {
     }
 }
 
+#if DEBUG
 #Preview {
     HistoryView()
         .modelContainer(PreviewData.container())
 }
+#endif

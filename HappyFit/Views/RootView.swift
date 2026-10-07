@@ -27,7 +27,9 @@ struct RootView: View {
     }
 }
 
+#if DEBUG
 #Preview {
     RootView()
         .modelContainer(PreviewData.container())
 }
+#endif

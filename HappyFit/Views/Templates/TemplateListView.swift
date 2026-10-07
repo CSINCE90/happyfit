@@ -8,6 +8,7 @@ struct TemplateListView: View {
     @State private var viewModel: TemplatesViewModel?
 
     @State private var nameDraft = ""
+    @State private var editMode: EditMode = .inactive
     @State private var showingNew = false
     @State private var renaming: WorkoutTemplate?
     @State private var deleting: WorkoutTemplate?
@@ -42,8 +43,14 @@ struct TemplateListView: View {
                 .onMove { viewModel?.move(templates, from: $0, to: $1) }
             }
             .navigationTitle("Schede")
+            .environment(\.editMode, $editMode)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) { EditButton() }
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(editMode.isEditing ? "Fine" : "Riordina") {
+                        withAnimation { editMode = editMode.isEditing ? .inactive : .active }
+                    }
+                    .frame(minHeight: 44)
+                }
                 ToolbarItem(placement: .primaryAction) {
                     Button("Nuova scheda", systemImage: "plus") { nameDraft = ""; showingNew = true }
                 }
@@ -73,12 +80,16 @@ struct TemplateListView: View {
     }
 }
 
+#if DEBUG
 #Preview {
     TemplateListView()
         .modelContainer(PreviewData.container())
 }
+#endif
 
+#if DEBUG
 #Preview("Vuota") {
     TemplateListView()
         .modelContainer(try! PersistenceController.makeContainer(inMemory: true))
 }
+#endif

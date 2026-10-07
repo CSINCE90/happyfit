@@ -8,6 +8,7 @@ struct TemplateEditorView: View {
     @State private var showingPicker = false
     @State private var showingRename = false
     @State private var nameDraft = ""
+    @State private var editMode: EditMode = .inactive
 
     let template: WorkoutTemplate
 
@@ -37,11 +38,21 @@ struct TemplateEditorView: View {
         .navigationTitle(template.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
-                Button("Rinomina", systemImage: "pencil") { nameDraft = template.name; showingRename = true }
-                EditButton()
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Button("Rinomina scheda", systemImage: "pencil") { nameDraft = template.name; showingRename = true }
+                    Button(editMode.isEditing ? "Fine riordino" : "Riordina esercizi",
+                           systemImage: "arrow.up.arrow.down") {
+                        withAnimation { editMode = editMode.isEditing ? .inactive : .active }
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .frame(minWidth: 44, minHeight: 44)
+                }
+                .accessibilityLabel("Altre azioni")
             }
         }
+        .environment(\.editMode, $editMode)
         .sheet(isPresented: $showingPicker) {
             ExercisePickerView { viewModel?.addExercise($0, to: template) }
         }
@@ -59,30 +70,74 @@ struct TemplateEditorView: View {
     }
 }
 
-/// Riga dell'editor: nome esercizio e tre stepper.
+/// Riga dell'editor: nome esercizio e tre valori, ciascuno su una riga (etichetta a sinistra, − valore + a destra).
 private struct TemplateRowEditor: View {
     let row: TemplateExercise
     let onChange: (Int?, Int?, Int?) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 4) {
             Text(row.exercise?.name ?? "Esercizio").font(.headline)
-            Stepper(value: Binding(get: { row.targetSets }, set: { onChange($0, nil, nil) }), in: 1...20) {
-                Text("Serie: \(row.targetSets)")
+            ValueRow(label: "Serie", valueText: "\(row.targetSets)", range: 1...20, value: row.targetSets, step: 1) {
+                onChange($0, nil, nil)
             }
-            Stepper(value: Binding(get: { row.targetReps }, set: { onChange(nil, $0, nil) }), in: 1...100) {
-                Text("Ripetizioni: \(row.targetReps)")
+            ValueRow(label: "Ripetizioni", valueText: "\(row.targetReps)", range: 1...100, value: row.targetReps, step: 1) {
+                onChange(nil, $0, nil)
             }
-            Stepper(value: Binding(get: { row.restSeconds }, set: { onChange(nil, nil, $0) }), in: 0...900, step: 15) {
-                Text("Recupero: \(Formatting.rest(row.restSeconds))")
+            ValueRow(label: "Recupero", valueText: Formatting.rest(row.restSeconds), range: 0...900, value: row.restSeconds, step: 15) {
+                onChange(nil, nil, $0)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
     }
 }
 
+/// Riga etichetta + − valore +, alta almeno 48 pt; con testo molto grande va su due righe.
+private struct ValueRow: View {
+    let label: String
+    let valueText: String
+    let range: ClosedRange<Int>
+    let value: Int
+    let step: Int
+    let onChange: (Int) -> Void
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 8) {
+                Text(label).lineLimit(1)
+                Spacer(minLength: 8)
+                controls(valueMinWidth: 72)
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                Text(label)
+                controls(valueMinWidth: 0)
+            }
+        }
+        .frame(minHeight: 48)
+        .padding(.vertical, 2)
+    }
+
+    private func controls(valueMinWidth: CGFloat) -> some View {
+        HStack(spacing: 8) {
+            StepButton(systemImage: "minus", label: "\(label) meno", isEnabled: value > range.lowerBound) {
+                onChange(max(value - step, range.lowerBound))
+            }
+            Text(valueText)
+                .font(.body.monospacedDigit().bold())
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .frame(minWidth: valueMinWidth, maxWidth: valueMinWidth == 0 ? .infinity : nil)
+            StepButton(systemImage: "plus", label: "\(label) più", isEnabled: value < range.upperBound) {
+                onChange(min(value + step, range.upperBound))
+            }
+        }
+    }
+}
+
+#if DEBUG
 #Preview {
     let container = PreviewData.container()
     return NavigationStack { TemplateEditorView(template: PreviewData.template(in: container)) }
         .modelContainer(container)
 }
+#endif

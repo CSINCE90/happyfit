@@ -1,3 +1,4 @@
+#if DEBUG
 import Foundation
 import SwiftData
 
@@ -70,3 +71,4 @@ enum PreviewData {
         return all[0]
     }
 }
+#endif

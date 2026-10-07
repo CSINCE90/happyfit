@@ -91,7 +91,9 @@ struct GroupFilterView: View {
     }
 }
 
+#if DEBUG
 #Preview {
     ExercisePickerView { _ in }
         .modelContainer(PreviewData.container())
 }
+#endif

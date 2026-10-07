@@ -98,12 +98,16 @@ struct WorkoutHomeView: View {
     }
 }
 
+#if DEBUG
 #Preview("Con allenamento aperto") {
     WorkoutHomeView()
         .modelContainer(PreviewData.container(openSession: true))
 }
+#endif
 
+#if DEBUG
 #Preview("Senza sessione") {
     WorkoutHomeView()
         .modelContainer(PreviewData.container())
 }
+#endif
