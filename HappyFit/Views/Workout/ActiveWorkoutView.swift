@@ -16,6 +16,11 @@ struct ActiveWorkoutView: View {
         _viewModel = State(initialValue: ActiveWorkoutViewModel(session: session, context: context))
     }
 
+    /// Per anteprime e collaudo: usa un ViewModel già preparato (es. con il timer attivo).
+    init(viewModel: ActiveWorkoutViewModel) {
+        _viewModel = State(initialValue: viewModel)
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {

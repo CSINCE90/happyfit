@@ -48,7 +48,7 @@ struct ExerciseEditSheet: View {
                     Section { Text(message).foregroundStyle(.red) }
                 }
             }
-            .navigationTitle(exercise == nil ? "Nuovo esercizio" : "Modifica esercizio")
+            .navigationTitle(exercise == nil ? "Nuovo" : "Modifica")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

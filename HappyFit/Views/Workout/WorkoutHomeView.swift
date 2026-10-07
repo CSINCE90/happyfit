@@ -19,14 +19,14 @@ struct WorkoutHomeView: View {
                         Button {
                             presented = open
                         } label: {
-                            Label {
-                                VStack(alignment: .leading) {
+                            HStack(spacing: 12) {
+                                Image(systemName: "play.circle.fill").font(.title)
+                                VStack(alignment: .leading, spacing: 2) {
                                     Text("Allenamento in corso").font(.headline)
                                     Text("\(open.name) · iniziato alle \(open.startedAt.formatted(date: .omitted, time: .shortened))")
                                         .font(.subheadline)
                                 }
-                            } icon: {
-                                Image(systemName: "play.circle.fill").font(.title)
+                                Spacer(minLength: 0)
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.vertical, 6)
@@ -67,6 +67,8 @@ struct WorkoutHomeView: View {
                         Label("Sessione libera", systemImage: "plus.circle")
                             .font(.headline)
                             .padding(.vertical, 6)
+                            // Stesso aspetto "spento" delle card delle schede quando c'è una sessione aperta.
+                            .foregroundStyle(openSessions.isEmpty ? Color.accentColor : Color.secondary.opacity(0.6))
                     }
                     .disabled(!openSessions.isEmpty)
                 } footer: {

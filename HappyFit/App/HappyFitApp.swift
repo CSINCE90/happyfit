@@ -18,8 +18,15 @@ struct HappyFitApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView()
+            #if DEBUG
+            if let screen = DebugLaunch.screen {
+                DebugScreenView(name: screen)
+            } else {
+                RootView().modelContainer(container)
+            }
+            #else
+            RootView().modelContainer(container)
+            #endif
         }
-        .modelContainer(container)
     }
 }
