@@ -1,0 +1,17 @@
+# macOS
+.DS_Store
+
+# Xcode (il progetto è generato da XcodeGen)
+HappyFit.xcodeproj
+xcuserdata/
+*.xcworkspace/xcuserdata/
+DerivedData/
+build/
+*.xcuserstate
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# Altri tool
+.kilo/
