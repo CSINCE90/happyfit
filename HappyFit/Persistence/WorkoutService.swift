@@ -8,6 +8,8 @@ enum WorkoutServiceError: LocalizedError, Equatable {
     case emptyExerciseName
     case duplicateExerciseName(String)
     case exerciseArchived(String)
+    case noCompletedSets
+    case emptyTemplateName
 
     var errorDescription: String? {
         switch self {
@@ -21,6 +23,10 @@ enum WorkoutServiceError: LocalizedError, Equatable {
             return "Esiste già un esercizio chiamato \"\(name)\"."
         case .exerciseArchived(let name):
             return "L'esercizio \"\(name)\" è archiviato."
+        case .noCompletedSets:
+            return "Nessuna serie completata: non c'è nulla da salvare. Puoi scartare l'allenamento."
+        case .emptyTemplateName:
+            return "Il nome della scheda non può essere vuoto."
         }
     }
 }
@@ -28,6 +34,9 @@ enum WorkoutServiceError: LocalizedError, Equatable {
 /// Logica degli allenamenti sopra SwiftData, senza UI.
 @MainActor
 struct WorkoutService {
+    /// Recupero usato quando né l'esercizio né l'utente ne specificano uno.
+    static let fallbackRestSeconds = 90
+
     let context: ModelContext
 
     // MARK: - Catalogo
@@ -42,9 +51,9 @@ struct WorkoutService {
     }
 
     @discardableResult
-    func createExercise(name: String, muscleGroup: MuscleGroup? = nil) throws -> Exercise {
+    func createExercise(name: String, muscleGroup: MuscleGroup? = nil, defaultRestSeconds: Int? = nil) throws -> Exercise {
         let clean = try validatedName(name, excluding: nil)
-        let exercise = Exercise(name: clean, muscleGroup: muscleGroup)
+        let exercise = Exercise(name: clean, muscleGroup: muscleGroup, defaultRestSeconds: defaultRestSeconds)
         context.insert(exercise)
         try context.save()
         return exercise
@@ -52,6 +61,17 @@ struct WorkoutService {
 
     func renameExercise(_ exercise: Exercise, to name: String) throws {
         exercise.name = try validatedName(name, excluding: exercise)
+        try context.save()
+    }
+
+    func setMuscleGroup(_ exercise: Exercise, _ group: MuscleGroup?) throws {
+        exercise.muscleGroup = group
+        try context.save()
+    }
+
+    /// Recupero proposto quando l'esercizio entra in una scheda o in una sessione (nil = usa l'impostazione globale).
+    func setDefaultRest(_ exercise: Exercise, seconds: Int?) throws {
+        exercise.defaultRestSeconds = seconds.map { max($0, 0) }
         try context.save()
     }
 
@@ -79,10 +99,16 @@ struct WorkoutService {
 
     // MARK: - Template
 
+    /// Schede ordinate per `order`.
+    func templates() throws -> [WorkoutTemplate] {
+        try context.fetch(FetchDescriptor<WorkoutTemplate>(sortBy: [SortDescriptor(\.order)]))
+    }
+
     @discardableResult
-    func createTemplate(name: String, exercises: [(exercise: Exercise, sets: Int, reps: Int, restSeconds: Int)]) throws -> WorkoutTemplate {
-        let order = try context.fetchCount(FetchDescriptor<WorkoutTemplate>())
-        let template = WorkoutTemplate(name: name, order: order)
+    func createTemplate(name: String, exercises: [(exercise: Exercise, sets: Int, reps: Int, restSeconds: Int)] = []) throws -> WorkoutTemplate {
+        let clean = try validatedTemplateName(name)
+        let order = (try templates().last?.order ?? -1) + 1
+        let template = WorkoutTemplate(name: clean, order: order)
         context.insert(template)
         for (index, item) in exercises.enumerated() {
             let row = TemplateExercise(exercise: item.exercise, order: index, targetSets: item.sets, targetReps: item.reps, restSeconds: item.restSeconds)
@@ -91,6 +117,76 @@ struct WorkoutService {
         }
         try context.save()
         return template
+    }
+
+    func renameTemplate(_ template: WorkoutTemplate, to name: String) throws {
+        template.name = try validatedTemplateName(name)
+        try context.save()
+    }
+
+    /// Copia la scheda (nome + " (copia)") in fondo alla lista.
+    @discardableResult
+    func duplicateTemplate(_ template: WorkoutTemplate) throws -> WorkoutTemplate {
+        let copy = try createTemplate(
+            name: template.name + " (copia)",
+            exercises: template.sortedExercises.compactMap { row in
+                row.exercise.map { ($0, row.targetSets, row.targetReps, row.restSeconds) }
+            }
+        )
+        return copy
+    }
+
+    func deleteTemplate(_ template: WorkoutTemplate) throws {
+        let remaining = try templates().filter { $0 !== template }
+        context.delete(template)
+        for (index, item) in remaining.enumerated() { item.order = index }
+        try context.save()
+    }
+
+    func reorderTemplates(_ ordered: [WorkoutTemplate]) throws {
+        for (index, item) in ordered.enumerated() { item.order = index }
+        try context.save()
+    }
+
+    @discardableResult
+    func addExercise(_ exercise: Exercise, to template: WorkoutTemplate, sets: Int = 3, reps: Int = 10, restSeconds: Int? = nil) throws -> TemplateExercise {
+        guard !exercise.isArchived else { throw WorkoutServiceError.exerciseArchived(exercise.name) }
+        let row = TemplateExercise(
+            exercise: exercise,
+            order: (template.sortedExercises.last?.order ?? -1) + 1,
+            targetSets: max(sets, 1),
+            targetReps: max(reps, 1),
+            restSeconds: restSeconds ?? exercise.defaultRestSeconds ?? Self.fallbackRestSeconds
+        )
+        row.template = template
+        context.insert(row)
+        try context.save()
+        return row
+    }
+
+    func removeTemplateExercise(_ row: TemplateExercise) throws {
+        let remaining = (row.template?.sortedExercises ?? []).filter { $0 !== row }
+        context.delete(row)
+        for (index, item) in remaining.enumerated() { item.order = index }
+        try context.save()
+    }
+
+    func reorderTemplateExercises(_ ordered: [TemplateExercise]) throws {
+        for (index, item) in ordered.enumerated() { item.order = index }
+        try context.save()
+    }
+
+    func updateTemplateExercise(_ row: TemplateExercise, sets: Int? = nil, reps: Int? = nil, restSeconds: Int? = nil) throws {
+        if let sets { row.targetSets = max(sets, 1) }
+        if let reps { row.targetReps = max(reps, 1) }
+        if let restSeconds { row.restSeconds = max(restSeconds, 0) }
+        try context.save()
+    }
+
+    private func validatedTemplateName(_ name: String) throws -> String {
+        let clean = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty else { throw WorkoutServiceError.emptyTemplateName }
+        return clean
     }
 
     // MARK: - Sessioni
@@ -105,6 +201,17 @@ struct WorkoutService {
         return try context.fetch(descriptor).first
     }
 
+    /// Sessione libera, senza esercizi: si aggiungono durante l'allenamento.
+    @discardableResult
+    func startEmptySession(name: String, at date: Date = Date()) throws -> WorkoutSession {
+        guard try openSession() == nil else { throw WorkoutServiceError.sessionAlreadyOpen }
+        let clean = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let session = WorkoutSession(name: clean.isEmpty ? "Allenamento libero" : clean, startedAt: date)
+        context.insert(session)
+        try context.save()
+        return session
+    }
+
     /// Crea una sessione da un template, precompilando dall'ultimo allenamento di ogni esercizio.
     @discardableResult
     func startSession(from template: WorkoutTemplate, at date: Date = Date()) throws -> WorkoutSession {
@@ -115,7 +222,7 @@ struct WorkoutService {
 
         for row in template.sortedExercises {
             guard let exercise = row.exercise else { continue }
-            let sessionExercise = SessionExercise(exercise: exercise, order: session.exercises.count)
+            let sessionExercise = SessionExercise(exercise: exercise, order: session.exercises.count, restSeconds: row.restSeconds)
             sessionExercise.session = session
             context.insert(sessionExercise)
 
@@ -190,12 +297,16 @@ struct WorkoutService {
 
     /// Aggiunge un esercizio libero a una sessione in corso (precompilato se c'è storico, altrimenti una serie vuota).
     @discardableResult
-    func addExercise(_ exercise: Exercise, to session: WorkoutSession) throws -> SessionExercise {
+    func addExercise(_ exercise: Exercise, to session: WorkoutSession, restSeconds: Int? = nil) throws -> SessionExercise {
         guard session.isOpen else { throw WorkoutServiceError.sessionAlreadyFinished }
         guard !exercise.isArchived else { throw WorkoutServiceError.exerciseArchived(exercise.name) }
 
         let last = session.sortedExercises.last
-        let sessionExercise = SessionExercise(exercise: exercise, order: (last?.order ?? -1) + 1)
+        let sessionExercise = SessionExercise(
+            exercise: exercise,
+            order: (last?.order ?? -1) + 1,
+            restSeconds: restSeconds ?? exercise.defaultRestSeconds ?? Self.fallbackRestSeconds
+        )
         sessionExercise.session = session
         context.insert(sessionExercise)
 
@@ -210,9 +321,54 @@ struct WorkoutService {
         return sessionExercise
     }
 
+    /// Chiude la sessione tenendo solo le serie completate: elimina le incomplete e gli esercizi rimasti senza serie.
+    /// Se non c'è nessuna serie completata lancia `noCompletedSets` e non cambia nulla (usare `discard`).
     func finish(_ session: WorkoutSession, at date: Date = Date()) throws {
         guard session.isOpen else { throw WorkoutServiceError.sessionAlreadyFinished }
+        guard session.completedSetCount > 0 else { throw WorkoutServiceError.noCompletedSets }
+
+        let kept = session.sortedExercises.filter { !$0.completedSets.isEmpty }
+        for item in session.sortedExercises where item.completedSets.isEmpty { context.delete(item) }
+        for (index, item) in kept.enumerated() {
+            item.order = index
+            let done = item.completedSets
+            for entry in item.sortedSets where !entry.isCompleted { context.delete(entry) }
+            for (setIndex, entry) in done.enumerated() { entry.order = setIndex }
+        }
         session.endedAt = date
+        try context.save()
+    }
+
+    /// Scarta una sessione ancora aperta (elimina anche serie ed esercizi di sessione).
+    func discard(_ session: WorkoutSession) throws {
+        guard session.isOpen else { throw WorkoutServiceError.sessionAlreadyFinished }
+        context.delete(session)
+        try context.save()
+    }
+
+    /// Modifica peso, ripetizioni o tipo di una serie (anche di una sessione chiusa).
+    func updateSet(_ entry: SetEntry, weightKg: Double? = nil, reps: Int? = nil, type: SetType? = nil) throws {
+        if let weightKg { entry.weightKg = max(weightKg, 0) }
+        if let reps { entry.reps = max(reps, 0) }
+        if let type { entry.type = type }
+        try context.save()
+    }
+
+    func removeSessionExercise(_ item: SessionExercise) throws {
+        let remaining = (item.session?.sortedExercises ?? []).filter { $0 !== item }
+        context.delete(item)
+        for (index, other) in remaining.enumerated() { other.order = index }
+        try context.save()
+    }
+
+    func reorderSessionExercises(_ ordered: [SessionExercise]) throws {
+        for (index, item) in ordered.enumerated() { item.order = index }
+        try context.save()
+    }
+
+    /// Cambia il recupero di un esercizio solo per questa sessione.
+    func updateRest(_ item: SessionExercise, seconds: Int) throws {
+        item.restSeconds = max(seconds, 0)
         try context.save()
     }
 
@@ -263,7 +419,7 @@ struct WorkoutService {
         }
 
         for item in dto.exercises.sorted(by: { $0.order < $1.order }) {
-            let sessionExercise = SessionExercise(id: item.id, exercise: try resolveExercise(item.exercise), order: item.order)
+            let sessionExercise = SessionExercise(id: item.id, exercise: try resolveExercise(item.exercise), order: item.order, restSeconds: item.restSeconds)
             sessionExercise.session = session
             context.insert(sessionExercise)
             for set in item.sets {

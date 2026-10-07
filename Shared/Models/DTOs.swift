@@ -20,6 +20,8 @@ struct SessionExerciseDTO: Codable, Sendable, Hashable, Identifiable {
     var id: UUID
     var exercise: ExerciseDTO
     var order: Int
+    /// Recupero in secondi, per il timer sul Watch.
+    var restSeconds: Int
     var sets: [SetEntryDTO]
 }
 

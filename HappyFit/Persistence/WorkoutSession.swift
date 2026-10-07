@@ -8,6 +8,8 @@ final class WorkoutSession {
     var name: String = ""
     var startedAt: Date = Date()
     var endedAt: Date?
+    /// Note libere sull'allenamento (UI negli step successivi).
+    var notes: String?
     /// Template di origine: se viene cancellato il riferimento si azzera.
     @Relationship(deleteRule: .nullify)
     var template: WorkoutTemplate?
@@ -25,6 +27,14 @@ final class WorkoutSession {
 
     var isOpen: Bool { endedAt == nil }
 
+    var completedSetCount: Int {
+        exercises.reduce(0) { $0 + $1.sets.filter { $0.completedAt != nil }.count }
+    }
+
+    var incompleteSetCount: Int {
+        exercises.reduce(0) { $0 + $1.sets.filter { $0.completedAt == nil }.count }
+    }
+
     var sortedExercises: [SessionExercise] {
         exercises.sorted { $0.order < $1.order }
     }
@@ -35,16 +45,20 @@ final class WorkoutSession {
 final class SessionExercise {
     var id: UUID = UUID()
     var order: Int = 0
+    /// Recupero di questo esercizio nella sessione (copiato dalla scheda, modificabile al volo).
+    var restSeconds: Int = 90
+    var notes: String?
     var session: WorkoutSession?
     @Relationship(deleteRule: .nullify)
     var exercise: Exercise?
     @Relationship(deleteRule: .cascade, inverse: \SetEntry.sessionExercise)
     var sets: [SetEntry] = []
 
-    init(id: UUID = UUID(), exercise: Exercise?, order: Int) {
+    init(id: UUID = UUID(), exercise: Exercise?, order: Int, restSeconds: Int = 90) {
         self.id = id
         self.exercise = exercise
         self.order = order
+        self.restSeconds = restSeconds
     }
 
     var sortedSets: [SetEntry] {
@@ -96,6 +110,6 @@ extension SessionExercise {
     /// Nil se l'esercizio del catalogo non è più disponibile.
     func toDTO() -> SessionExerciseDTO? {
         guard let exercise else { return nil }
-        return SessionExerciseDTO(id: id, exercise: exercise.toDTO(), order: order, sets: sortedSets.map { $0.toDTO() })
+        return SessionExerciseDTO(id: id, exercise: exercise.toDTO(), order: order, restSeconds: restSeconds, sets: sortedSets.map { $0.toDTO() })
     }
 }
