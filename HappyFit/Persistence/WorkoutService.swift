@@ -35,7 +35,7 @@ enum WorkoutServiceError: LocalizedError, Equatable {
 @MainActor
 struct WorkoutService {
     /// Recupero usato quando né l'esercizio né l'utente ne specificano uno.
-    static let fallbackRestSeconds = 90
+    nonisolated static let fallbackRestSeconds = 90
 
     let context: ModelContext
 
