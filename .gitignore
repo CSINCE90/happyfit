@@ -2,7 +2,7 @@
 .DS_Store
 
 # Xcode (il progetto è generato da XcodeGen)
-HappyFit.xcodeproj
+*.xcodeproj
 xcuserdata/
 *.xcworkspace/xcuserdata/
 DerivedData/
