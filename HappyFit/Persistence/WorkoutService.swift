@@ -10,6 +10,12 @@ enum WorkoutServiceError: LocalizedError, Equatable {
     case exerciseArchived(String)
     case noCompletedSets
     case emptyTemplateName
+    case emptySessionName
+    case exerciseUsedInSessions(name: String, count: Int)
+    case exerciseUsedInTemplates(name: String, templates: [String])
+    case endBeforeStart
+    case sessionStillOpen
+    case sessionWouldBeEmpty
 
     var errorDescription: String? {
         switch self {
@@ -27,6 +33,18 @@ enum WorkoutServiceError: LocalizedError, Equatable {
             return "Nessuna serie completata: non c'è nulla da salvare. Puoi scartare l'allenamento."
         case .emptyTemplateName:
             return "Il nome della scheda non può essere vuoto."
+        case .emptySessionName:
+            return "Il nome dell'allenamento non può essere vuoto."
+        case .exerciseUsedInSessions(let name, let count):
+            return "\"\(name)\" compare in \(count) \(count == 1 ? "allenamento" : "allenamenti"): eliminarlo falserebbe lo storico. Puoi archiviarlo."
+        case .exerciseUsedInTemplates(let name, let templates):
+            return "\"\(name)\" è usato nelle schede: \(templates.joined(separator: ", "))."
+        case .endBeforeStart:
+            return "La fine dell'allenamento non può precedere l'inizio."
+        case .sessionStillOpen:
+            return "L'allenamento è ancora in corso."
+        case .sessionWouldBeEmpty:
+            return "Un allenamento concluso deve avere almeno una serie completata."
         }
     }
 }

@@ -4,7 +4,11 @@ import SwiftData
 /// Editor di una scheda: esercizi con serie, ripetizioni e recupero target.
 struct TemplateEditorView: View {
     @Environment(\.modelContext) private var context
+    @Environment(\.dismiss) private var dismiss
     @State private var viewModel: TemplatesViewModel?
+    @State private var showingDelete = false
+    @State private var deletionPending = false
+    @State private var removingRow: TemplateExercise?
     @State private var showingPicker = false
     @State private var showingRename = false
     @State private var nameDraft = ""
@@ -18,11 +22,14 @@ struct TemplateEditorView: View {
                 Text("Nessun esercizio: aggiungine uno.").foregroundStyle(.secondary)
             }
             ForEach(template.sortedExercises) { row in
-                TemplateRowEditor(row: row) { sets, reps, rest in
+                TemplateRowEditor(row: row, onRemove: { removingRow = row }) { sets, reps, rest in
                     viewModel?.update(row, sets: sets, reps: reps, restSeconds: rest)
                 }
+                .swipeActions(edge: .trailing) {
+                    Button("Rimuovi", systemImage: "trash") { removingRow = row }
+                        .tint(.red)
+                }
             }
-            .onDelete { viewModel?.removeExercises(of: template, at: $0) }
             .onMove { viewModel?.moveExercises(of: template, from: $0, to: $1) }
 
             Section {
@@ -45,6 +52,8 @@ struct TemplateEditorView: View {
                            systemImage: "arrow.up.arrow.down") {
                         withAnimation { editMode = editMode.isEditing ? .inactive : .active }
                     }
+                    Divider()
+                    Button("Elimina scheda", systemImage: "trash", role: .destructive) { showingDelete = true }
                 } label: {
                     Image(systemName: "ellipsis.circle")
                         .frame(minWidth: 44, minHeight: 44)
@@ -53,6 +62,28 @@ struct TemplateEditorView: View {
             }
         }
         .environment(\.editMode, $editMode)
+        .confirmationDialog("Eliminare la scheda?", isPresented: $showingDelete, titleVisibility: .visible) {
+            Button("Elimina \"\(template.name)\"", role: .destructive) {
+                // Prima si chiude la schermata, poi si elimina (in onDisappear): la vista non legge una scheda già cancellata.
+                deletionPending = true
+                dismiss()
+            }
+            Button("Annulla", role: .cancel) {}
+        } message: {
+            Text("Gli allenamenti già svolti restano nello storico.")
+        }
+        .confirmationDialog("Togliere l'esercizio dalla scheda?", isPresented: Binding(get: { removingRow != nil }, set: { if !$0 { removingRow = nil } }), titleVisibility: .visible, presenting: removingRow) { row in
+            Button("Rimuovi \"\(row.exercise?.name ?? "esercizio")\"", role: .destructive) { removeRow(row) }
+            Button("Annulla", role: .cancel) {}
+        } message: { _ in
+            Text("L'esercizio resta nel catalogo e nello storico.")
+        }
+        .onDisappear {
+            if deletionPending {
+                deletionPending = false
+                viewModel?.delete(template)
+            }
+        }
         .sheet(isPresented: $showingPicker) {
             ExercisePickerView { viewModel?.addExercise($0, to: template) }
         }
@@ -70,14 +101,35 @@ struct TemplateEditorView: View {
     }
 }
 
+extension TemplateEditorView {
+    fileprivate func removeRow(_ row: TemplateExercise) {
+        if let index = template.sortedExercises.firstIndex(where: { $0 === row }) {
+            viewModel?.removeExercises(of: template, at: IndexSet(integer: index))
+        }
+    }
+}
+
 /// Riga dell'editor: nome esercizio e tre valori, ciascuno su una riga (etichetta a sinistra, − valore + a destra).
 private struct TemplateRowEditor: View {
     let row: TemplateExercise
+    let onRemove: () -> Void
     let onChange: (Int?, Int?, Int?) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(row.exercise?.name ?? "Esercizio").font(.headline)
+            HStack {
+                Text(row.exercise?.name ?? "Esercizio").font(.headline)
+                Spacer(minLength: 8)
+                Menu {
+                    Button("Rimuovi dalla scheda", systemImage: "trash", role: .destructive, action: onRemove)
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .font(.title3)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityLabel("Azioni esercizio \(row.exercise?.name ?? "")")
+            }
             ValueRow(label: "Serie", valueText: "\(row.targetSets)", range: 1...20, value: row.targetSets, step: 1) {
                 onChange($0, nil, nil)
             }

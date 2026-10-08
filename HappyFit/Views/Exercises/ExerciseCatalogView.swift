@@ -26,8 +26,15 @@ struct ExerciseCatalogView: View {
                         }
                         .buttonStyle(.plain)
                         .swipeActions {
+                            Button("Elimina", systemImage: "trash") { viewModel.requestDelete(exercise) }
+                                .tint(.red)
                             Button("Archivia", systemImage: "archivebox") { viewModel.archive(exercise) }
                                 .tint(.orange)
+                        }
+                        .contextMenu {
+                            Button("Modifica", systemImage: "pencil") { editing = exercise }
+                            Button("Archivia", systemImage: "archivebox") { viewModel.archive(exercise) }
+                            Button("Elimina", systemImage: "trash", role: .destructive) { viewModel.requestDelete(exercise) }
                         }
                     }
                     Section {
@@ -39,6 +46,7 @@ struct ExerciseCatalogView: View {
                 .searchable(text: Binding(get: { viewModel.searchText }, set: { viewModel.searchText = $0 }), prompt: "Cerca esercizio")
                 .sheet(isPresented: $showingNew) { ExerciseEditSheet(exercise: nil, viewModel: viewModel) }
                 .sheet(item: $editing) { ExerciseEditSheet(exercise: $0, viewModel: viewModel) }
+                .exerciseDeletionDialogs(viewModel)
             } else {
                 ProgressView()
             }
@@ -53,10 +61,11 @@ struct ExerciseCatalogView: View {
     }
 }
 
-/// Esercizi archiviati: si possono ripristinare.
+/// Esercizi archiviati: si possono ripristinare o, se mai usati, eliminare.
 struct ArchivedExercisesView: View {
     @Environment(\.modelContext) private var context
     @Query(filter: #Predicate<Exercise> { $0.isArchived }, sort: \Exercise.name) private var archived: [Exercise]
+    @State private var viewModel: ExerciseCatalogViewModel?
 
     var body: some View {
         List {
@@ -66,15 +75,36 @@ struct ArchivedExercisesView: View {
             ForEach(archived) { exercise in
                 HStack {
                     ExerciseRow(exercise: exercise)
-                    Button("Ripristina") {
-                        try? WorkoutService(context: context).unarchiveExercise(exercise)
-                    }
-                    .buttonStyle(.bordered)
+                    Button("Ripristina") { viewModel?.unarchive(exercise) }
+                        .buttonStyle(.bordered)
                 }
                 .frame(minHeight: 44)
+                .swipeActions {
+                    Button("Elimina", systemImage: "trash") { viewModel?.requestDelete(exercise) }
+                        .tint(.red)
+                }
+                .contextMenu {
+                    Button("Ripristina", systemImage: "arrow.uturn.backward") { viewModel?.unarchive(exercise) }
+                    Button("Elimina", systemImage: "trash", role: .destructive) { viewModel?.requestDelete(exercise) }
+                }
             }
         }
         .navigationTitle("Archiviati")
+        .task { if viewModel == nil { viewModel = ExerciseCatalogViewModel(context: context) } }
+        .modifier(OptionalDeletionDialogs(viewModel: viewModel))
+    }
+}
+
+/// Applica le finestre di eliminazione quando il ViewModel è pronto.
+private struct OptionalDeletionDialogs: ViewModifier {
+    let viewModel: ExerciseCatalogViewModel?
+
+    func body(content: Content) -> some View {
+        if let viewModel {
+            content.exerciseDeletionDialogs(viewModel)
+        } else {
+            content
+        }
     }
 }
 

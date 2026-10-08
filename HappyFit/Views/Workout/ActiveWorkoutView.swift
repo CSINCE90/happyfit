@@ -11,6 +11,9 @@ struct ActiveWorkoutView: View {
     @State private var showingPicker = false
     @State private var showingFinishDialog = false
     @State private var showingDiscardDialog = false
+    @State private var showingDiscardAnyway = false
+    @State private var showingRename = false
+    @State private var nameDraft = ""
 
     init(session: WorkoutSession, context: ModelContext) {
         _viewModel = State(initialValue: ActiveWorkoutViewModel(session: session, context: context))
@@ -55,6 +58,20 @@ struct ActiveWorkoutView: View {
                     Button("Riduci") { dismiss() }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Button("Rinomina allenamento", systemImage: "pencil") {
+                            nameDraft = viewModel.session.name
+                            showingRename = true
+                        }
+                        Button("Scarta allenamento", systemImage: "trash", role: .destructive) {
+                            showingDiscardAnyway = true
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle").frame(minWidth: 44, minHeight: 44)
+                    }
+                    .accessibilityLabel("Altre azioni")
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     Button("Termina", action: requestFinish)
                         .bold()
                 }
@@ -90,6 +107,17 @@ struct ActiveWorkoutView: View {
                 Button("Continua l'allenamento", role: .cancel) {}
             } message: {
                 Text("Non c'è nulla da salvare. Vuoi scartare questo allenamento?")
+            }
+            .confirmationDialog("Scartare l'allenamento?", isPresented: $showingDiscardAnyway, titleVisibility: .visible) {
+                Button("Scarta allenamento", role: .destructive) { viewModel.discard() }
+                Button("Continua l'allenamento", role: .cancel) {}
+            } message: {
+                Text("Verranno eliminate tutte le serie registrate, anche quelle completate. Non si può annullare.")
+            }
+            .alert("Rinomina allenamento", isPresented: $showingRename) {
+                TextField("Nome", text: $nameDraft)
+                Button("Annulla", role: .cancel) {}
+                Button("Salva") { viewModel.rename(to: nameDraft) }
             }
             .alert("Errore", isPresented: Binding(get: { viewModel.errorMessage != nil }, set: { if !$0 { viewModel.errorMessage = nil } })) {
                 Button("OK", role: .cancel) {}

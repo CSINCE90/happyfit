@@ -80,7 +80,7 @@ struct DebugScreenView: View {
         case "exercise-new":
             ExerciseEditSheet(exercise: nil, viewModel: ExerciseCatalogViewModel(context: container.mainContext))
         case "set-correction":
-            SetCorrectionSheet(entry: PreviewData.closedSession(in: container).sortedExercises[0].sortedSets[0]) { _, _ in }
+            SetCorrectionSheet(entry: PreviewData.closedSession(in: container).sortedExercises[0].sortedSets[0], onSave: { _, _, _ in })
         case "picker": ExercisePickerView { _ in }
         case "active": ActiveWorkoutView(session: PreviewData.openSession(in: container), context: container.mainContext)
         case "active-timer":

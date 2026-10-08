@@ -72,6 +72,18 @@ targets:
         TEST_HOST: $(BUILT_PRODUCTS_DIR)/HappyFit.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/HappyFit
         BUNDLE_LOADER: $(TEST_HOST)
 
+  HappyFitUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - HappyFitUITests
+    dependencies:
+      - target: HappyFit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.csince90.happyfit.uitests
+        GENERATE_INFOPLIST_FILE: YES
+
 schemes:
   HappyFit:
     build:
@@ -85,3 +97,11 @@ schemes:
     build:
       targets:
         HappyFitWatch: all
+  HappyFitUI:
+    build:
+      targets:
+        HappyFit: all
+        HappyFitUITests: [test]
+    test:
+      targets:
+        - HappyFitUITests

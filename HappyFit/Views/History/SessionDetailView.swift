@@ -1,31 +1,52 @@
 import SwiftUI
 import SwiftData
 
-/// Dettaglio di un allenamento chiuso, con correzione di peso e ripetizioni.
+/// Dettaglio di un allenamento concluso: modificabile in ogni parte (nome, orari, serie, esercizi).
 struct SessionDetailView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+    @State private var viewModel: SessionDetailViewModel?
+
     @State private var correcting: SetEntry?
+    @State private var editingTimes = false
+    @State private var showingRename = false
+    @State private var nameDraft = ""
+    @State private var showingPicker = false
     @State private var showingDelete = false
-    @State private var errorMessage: String?
+    @State private var deletingSet: SetEntry?
+    @State private var removingExercise: SessionExercise?
 
     let session: WorkoutSession
 
     var body: some View {
+        dialogs(on: contentList)
+            .task { if viewModel == nil { viewModel = SessionDetailViewModel(session: session, context: context) } }
+            .onDisappear { viewModel?.performPendingDeletion() }
+    }
+
+    private var contentList: some View {
         List {
             Section {
-                LabeledContent("Inizio", value: session.startedAt.formatted(date: .abbreviated, time: .shortened))
-                if let end = session.endedAt {
-                    LabeledContent("Durata", value: Formatting.duration(from: session.startedAt, to: end))
+                Button {
+                    nameDraft = session.name
+                    showingRename = true
+                } label: {
+                    row("Nome", value: session.name, icon: "pencil")
                 }
+                Button { editingTimes = true } label: {
+                    row("Inizio", value: session.startedAt.formatted(date: .abbreviated, time: .shortened), icon: "calendar")
+                }
+                Button { editingTimes = true } label: {
+                    row("Fine", value: (session.endedAt ?? session.startedAt).formatted(date: .abbreviated, time: .shortened), icon: "calendar")
+                }
+                LabeledContent("Durata", value: Formatting.duration(from: session.startedAt, to: session.endedAt ?? session.startedAt))
                 LabeledContent("Serie completate", value: "\(session.completedSetCount)")
             }
+
             ForEach(session.sortedExercises) { item in
-                Section(item.exercise?.name ?? "Esercizio") {
+                Section {
                     ForEach(Array(item.sortedSets.enumerated()), id: \.element.id) { index, entry in
-                        Button {
-                            correcting = entry
-                        } label: {
+                        Button { correcting = entry } label: {
                             HStack {
                                 Text("\(index + 1)").foregroundStyle(.secondary).frame(width: 28, alignment: .leading)
                                 Text(Formatting.setSummary(weightKg: entry.weightKg, reps: entry.reps))
@@ -40,7 +61,33 @@ struct SessionDetailView: View {
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
+                        .swipeActions {
+                            Button("Elimina", systemImage: "trash") { deletingSet = entry }
+                                .tint(.red)
+                        }
                     }
+                    Button {
+                        viewModel?.addSet(to: item)
+                    } label: {
+                        Label("Aggiungi serie", systemImage: "plus").frame(minHeight: 44)
+                    }
+                } header: {
+                    HStack {
+                        Text(item.exercise?.name ?? "Esercizio")
+                        Spacer()
+                        Menu {
+                            Button("Rimuovi esercizio", systemImage: "trash", role: .destructive) { removingExercise = item }
+                        } label: {
+                            Image(systemName: "ellipsis.circle").frame(width: 44, height: 44).contentShape(Rectangle())
+                        }
+                        .accessibilityLabel("Azioni esercizio \(item.exercise?.name ?? "")")
+                    }
+                }
+            }
+
+            Section {
+                Button { showingPicker = true } label: {
+                    Label("Aggiungi esercizio", systemImage: "plus").frame(minHeight: 44)
                 }
             }
             Section {
@@ -51,37 +98,91 @@ struct SessionDetailView: View {
         .navigationTitle(session.name)
         .navigationBarTitleDisplayMode(.inline)
         .sheet(item: $correcting) { entry in
-            SetCorrectionSheet(entry: entry) { weight, reps in
-                do { try WorkoutService(context: context).updateSet(entry, weightKg: weight, reps: reps) } catch { errorMessage = error.localizedDescription }
+            SetCorrectionSheet(
+                entry: entry,
+                onSave: { viewModel?.updateSet(entry, weightKg: $0, reps: $1, type: $2) },
+                onDelete: { deletingSet = entry }
+            )
+        }
+        .sheet(isPresented: $editingTimes) {
+            SessionTimesSheet(start: session.startedAt, end: session.endedAt ?? session.startedAt) { start, end in
+                viewModel?.updateTimes(start: start, end: end) ?? false
             }
+        }
+        .sheet(isPresented: $showingPicker) {
+            ExercisePickerView { viewModel?.addExercise($0) }
+        }
+    }
+
+    private func dialogs<V: View>(on view: V) -> some View {
+        view
+        .alert("Rinomina allenamento", isPresented: $showingRename) {
+            TextField("Nome", text: $nameDraft)
+            Button("Annulla", role: .cancel) {}
+            Button("Salva") { viewModel?.rename(to: nameDraft) }
+        }
+        .confirmationDialog("Eliminare la serie?", isPresented: Binding(get: { deletingSet != nil }, set: { if !$0 { deletingSet = nil } }), titleVisibility: .visible, presenting: deletingSet) { entry in
+            Button("Elimina serie", role: .destructive) { viewModel?.removeSet(entry) }
+            Button("Annulla", role: .cancel) {}
+        }
+        .confirmationDialog("Togliere l'esercizio dall'allenamento?", isPresented: Binding(get: { removingExercise != nil }, set: { if !$0 { removingExercise = nil } }), titleVisibility: .visible, presenting: removingExercise) { item in
+            Button("Rimuovi \"\(item.exercise?.name ?? "esercizio")\"", role: .destructive) { viewModel?.removeExercise(item) }
+            Button("Annulla", role: .cancel) {}
+        } message: { _ in
+            Text("Verranno eliminate anche le sue serie. L'esercizio resta nel catalogo.")
         }
         .confirmationDialog("Eliminare l'allenamento?", isPresented: $showingDelete, titleVisibility: .visible) {
-            Button("Elimina", role: .destructive) {
-                do {
-                    try WorkoutService(context: context).deleteSession(session)
-                    dismiss()
-                } catch { errorMessage = error.localizedDescription }
-            }
+            Button("Elimina", role: .destructive) { deleteSession() }
+            Button("Annulla", role: .cancel) {}
+        } message: {
+            Text("Verranno eliminate anche tutte le sue serie.")
         }
-        .alert("Errore", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+        .alert("Allenamento vuoto", isPresented: Binding(get: { viewModel?.offerDeletingSession ?? false }, set: { if !$0 { viewModel?.offerDeletingSession = false } })) {
+            Button("Elimina allenamento", role: .destructive) { deleteSession() }
+            Button("Annulla", role: .cancel) {}
+        } message: {
+            Text("Un allenamento concluso deve avere almeno una serie completata. Vuoi eliminare l'intero allenamento?")
+        }
+        .alert("Errore", isPresented: Binding(get: { viewModel?.errorMessage != nil }, set: { if !$0 { viewModel?.errorMessage = nil } })) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text(errorMessage ?? "")
+            Text(viewModel?.errorMessage ?? "")
         }
+    }
+
+    /// Chiude la schermata e solo dopo elimina (in onDisappear): la vista non rilegge un allenamento già cancellato.
+    private func deleteSession() {
+        viewModel?.requestSessionDeletion()
+        dismiss()
+    }
+
+    private func row(_ title: String, value: String, icon: String) -> some View {
+        HStack {
+            Text(title).foregroundStyle(.primary)
+            Spacer()
+            Text(value).foregroundStyle(.secondary).multilineTextAlignment(.trailing)
+            Image(systemName: icon).foregroundStyle(.secondary)
+        }
+        .frame(minHeight: 44)
+        .contentShape(Rectangle())
     }
 }
 
-/// Correzione di peso e ripetizioni di una serie.
+/// Correzione di una serie: peso, ripetizioni, tipo; oppure eliminazione.
 struct SetCorrectionSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var weightText: String
     @State private var repsText: String
-    let onSave: (Double, Int) -> Void
+    @State private var type: SetType
+    let onSave: (Double, Int, SetType) -> Void
+    let onDelete: (() -> Void)?
 
-    init(entry: SetEntry, onSave: @escaping (Double, Int) -> Void) {
+    init(entry: SetEntry, onSave: @escaping (Double, Int, SetType) -> Void, onDelete: (() -> Void)? = nil) {
         _weightText = State(initialValue: Formatting.weight(entry.weightKg))
         _repsText = State(initialValue: "\(entry.reps)")
+        _type = State(initialValue: entry.type)
         self.onSave = onSave
+        self.onDelete = onDelete
     }
 
     private var isValid: Bool { Formatting.parseNumber(weightText) != nil && Int(repsText) != nil }
@@ -95,6 +196,21 @@ struct SetCorrectionSheet: View {
                 Section("Ripetizioni") {
                     TextField("Ripetizioni", text: $repsText).keyboardType(.numberPad).font(.title2.monospacedDigit())
                 }
+                Section("Tipo di serie") {
+                    Picker("Tipo", selection: $type) {
+                        ForEach(SetType.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                }
+                if let onDelete {
+                    Section {
+                        Button("Elimina serie", systemImage: "trash", role: .destructive) {
+                            dismiss()
+                            onDelete()
+                        }
+                        .frame(minHeight: 44)
+                    }
+                }
             }
             .navigationTitle("Correggi serie")
             .navigationBarTitleDisplayMode(.inline)
@@ -102,7 +218,7 @@ struct SetCorrectionSheet: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Annulla") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Salva") {
-                        if let weight = Formatting.parseNumber(weightText), let reps = Int(repsText) { onSave(weight, reps) }
+                        if let weight = Formatting.parseNumber(weightText), let reps = Int(repsText) { onSave(weight, reps, type) }
                         dismiss()
                     }
                     .bold()
@@ -110,7 +226,50 @@ struct SetCorrectionSheet: View {
                 }
             }
         }
-        .presentationDetents([.medium])
+        .presentationDetents([.large])
+    }
+}
+
+/// Modifica di inizio e fine: la fine non può precedere l'inizio.
+struct SessionTimesSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var start: Date
+    @State private var end: Date
+    /// Ritorna true se il salvataggio è andato a buon fine.
+    let onSave: (Date, Date) -> Bool
+
+    init(start: Date, end: Date, onSave: @escaping (Date, Date) -> Bool) {
+        _start = State(initialValue: start)
+        _end = State(initialValue: end)
+        self.onSave = onSave
+    }
+
+    private var endsBeforeStart: Bool { end < start }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    DatePicker("Inizio", selection: $start)
+                    DatePicker("Fine", selection: $end)
+                } footer: {
+                    if endsBeforeStart {
+                        Text("La fine non può precedere l'inizio.").foregroundStyle(.red)
+                    }
+                }
+            }
+            .navigationTitle("Data e ora")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Annulla") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Salva") { if onSave(start, end) { dismiss() } }
+                        .bold()
+                        .disabled(endsBeforeStart)
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
     }
 }
 

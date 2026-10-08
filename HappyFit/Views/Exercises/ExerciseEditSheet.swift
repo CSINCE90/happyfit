@@ -46,10 +46,26 @@ struct ExerciseEditSheet: View {
                 } footer: {
                     Text("Se spento si usa il recupero predefinito delle Impostazioni.")
                 }
+                if let exercise {
+                    Section {
+                        Button("Archivia esercizio", systemImage: "archivebox") {
+                            viewModel.archive(exercise)
+                            dismiss()
+                        }
+                        .frame(minHeight: 44)
+                        Button("Elimina esercizio", systemImage: "trash", role: .destructive) {
+                            viewModel.requestDelete(exercise)
+                        }
+                        .frame(minHeight: 44)
+                    } footer: {
+                        Text("Un esercizio già usato in un allenamento non si elimina: si archivia e resta nello storico.")
+                    }
+                }
                 if let message = viewModel.errorMessage {
                     Section { Text(message).foregroundStyle(.red) }
                 }
             }
+            .exerciseDeletionDialogs(viewModel) { dismiss() }
             .navigationTitle(exercise == nil ? "Nuovo" : "Modifica")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

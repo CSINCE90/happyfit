@@ -33,7 +33,7 @@ final class TemplatesViewModel {
     }
 
     func delete(_ template: WorkoutTemplate) {
-        run { try service.deleteTemplate(template) }
+        run { try service.removeTemplate(template) }
     }
 
     /// `templates` è l'elenco attualmente mostrato (ordinato).

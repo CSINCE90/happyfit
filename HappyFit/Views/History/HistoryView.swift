@@ -7,7 +7,8 @@ struct HistoryView: View {
     @Query(filter: #Predicate<WorkoutSession> { $0.endedAt != nil }, sort: \WorkoutSession.startedAt, order: .reverse)
     private var sessions: [WorkoutSession]
     @State private var deleting: WorkoutSession?
-    @State private var errorMessage: String?
+    @State private var viewModel: HistoryViewModel?
+    @State private var showingNew = false
 
     var body: some View {
         NavigationStack {
@@ -29,22 +30,33 @@ struct HistoryView: View {
                         .frame(minHeight: 44, alignment: .leading)
                     }
                     .swipeActions {
+                        Button("Elimina", systemImage: "trash") { deleting = session }
+                            .tint(.red)
+                    }
+                    .contextMenu {
                         Button("Elimina", systemImage: "trash", role: .destructive) { deleting = session }
                     }
                 }
             }
             .navigationTitle("Storico")
-            .confirmationDialog("Eliminare l'allenamento?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible, presenting: deleting) { session in
-                Button("Elimina", role: .destructive) {
-                    do { try WorkoutService(context: context).deleteSession(session) } catch { errorMessage = error.localizedDescription }
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Aggiungi allenamento", systemImage: "plus") { showingNew = true }
                 }
+            }
+            .sheet(isPresented: $showingNew) {
+                if let viewModel { PastSessionSheet(viewModel: viewModel) }
+            }
+            .task { if viewModel == nil { viewModel = HistoryViewModel(context: context) } }
+            .confirmationDialog("Eliminare l'allenamento?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible, presenting: deleting) { session in
+                Button("Elimina", role: .destructive) { viewModel?.delete(session) }
             } message: { _ in
                 Text("Verranno eliminate anche tutte le sue serie.")
             }
-            .alert("Errore", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            .alert("Errore", isPresented: Binding(get: { viewModel?.errorMessage != nil }, set: { if !$0 { viewModel?.errorMessage = nil } })) {
                 Button("OK", role: .cancel) {}
             } message: {
-                Text(errorMessage ?? "")
+                Text(viewModel?.errorMessage ?? "")
             }
         }
     }

@@ -27,10 +27,27 @@ struct TemplateListView: View {
                             Text(template.name).font(.headline)
                             Text("\(template.exercises.count) esercizi").font(.subheadline).foregroundStyle(.secondary)
                         }
+                        .padding(.trailing, 48)
                         .frame(minHeight: 44, alignment: .leading)
                     }
+                    // Menu sempre visibile su ogni scheda (oltre a swipe e tocco prolungato).
+                    .overlay(alignment: .trailing) {
+                        Menu {
+                            Button("Rinomina", systemImage: "pencil") { nameDraft = template.name; renaming = template }
+                            Button("Duplica", systemImage: "plus.square.on.square") { viewModel?.duplicate(template) }
+                            Button("Elimina", systemImage: "trash", role: .destructive) { deleting = template }
+                        } label: {
+                            Image(systemName: "ellipsis.circle")
+                                .font(.title3)
+                                .frame(width: 44, height: 44)
+                                .contentShape(Rectangle())
+                        }
+                        .padding(.trailing, 20)
+                        .accessibilityLabel("Azioni scheda \(template.name)")
+                    }
                     .swipeActions(edge: .trailing) {
-                        Button("Elimina", systemImage: "trash", role: .destructive) { deleting = template }
+                        Button("Elimina", systemImage: "trash") { deleting = template }
+                            .tint(.red)
                         Button("Duplica", systemImage: "plus.square.on.square") { viewModel?.duplicate(template) }
                             .tint(.blue)
                     }

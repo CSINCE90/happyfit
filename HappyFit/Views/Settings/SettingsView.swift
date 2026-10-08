@@ -5,6 +5,8 @@ struct SettingsView: View {
     @AppStorage(AppSettings.defaultRestKey) private var defaultRest = AppSettings.defaultRestFallback
     @AppStorage(AppSettings.weightStepKey) private var weightStep = AppSettings.weightStepFallback
 
+    @State private var confirmingReset = false
+
     private let presets: [Double] = [1, 2.5, 5]
 
     var body: some View {
@@ -37,12 +39,28 @@ struct SettingsView: View {
                     Text("Di quanto cambia il peso a ogni tocco su + e −.")
                 }
 
+                Section {
+                    Button("Ripristina valori predefiniti", systemImage: "arrow.counterclockwise", role: .destructive) {
+                        confirmingReset = true
+                    }
+                    .frame(minHeight: 44)
+                } footer: {
+                    Text("Riporta recupero e incremento del peso ai valori iniziali. Schede, esercizi e storico non cambiano.")
+                }
+
                 Section("Esercizi") {
                     NavigationLink("Catalogo esercizi") { ExerciseCatalogView() }
                     NavigationLink("Esercizi archiviati") { ArchivedExercisesView() }
                 }
             }
             .navigationTitle("Impostazioni")
+            .confirmationDialog("Ripristinare le impostazioni?", isPresented: $confirmingReset, titleVisibility: .visible) {
+                Button("Ripristina", role: .destructive) {
+                    defaultRest = AppSettings.defaultRestFallback
+                    weightStep = AppSettings.weightStepFallback
+                }
+                Button("Annulla", role: .cancel) {}
+            }
         }
     }
 }

@@ -111,6 +111,10 @@ final class ActiveWorkoutViewModel {
         perform { try service.updateRest(item, seconds: seconds) }
     }
 
+    func rename(to name: String) {
+        perform { try service.renameSession(session, to: name) }
+    }
+
     // MARK: - Chiusura
 
     /// Chiude tenendo solo le serie completate. Ritorna false (con errorMessage) se non è possibile.
