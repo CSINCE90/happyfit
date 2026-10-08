@@ -8,6 +8,7 @@ struct WorkoutHomeView: View {
     @Query(filter: #Predicate<WorkoutSession> { $0.endedAt == nil }, sort: \WorkoutSession.startedAt, order: .reverse)
     private var openSessions: [WorkoutSession]
 
+    @Environment(\.palette) private var palette
     @State private var presented: WorkoutSession?
     @State private var errorMessage: String?
 
@@ -19,64 +20,83 @@ struct WorkoutHomeView: View {
                         Button {
                             presented = open
                         } label: {
-                            HStack(spacing: 12) {
-                                Image(systemName: "play.circle.fill").font(.title)
+                            HStack(spacing: Spacing.m) {
+                                Image(systemName: "play.fill")
+                                    .font(.title2.weight(.black))
+                                    .frame(width: 52, height: 52)
+                                    .background(Palette.ink.opacity(0.12), in: Circle())
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text("Allenamento in corso").font(.headline)
+                                    Text("Allenamento in corso").font(.hfTitle)
                                     Text("\(open.name) · iniziato alle \(open.startedAt.formatted(date: .omitted, time: .shortened))")
-                                        .font(.subheadline)
+                                        .font(.system(.subheadline, design: .rounded, weight: .semibold))
                                 }
                                 Spacer(minLength: 0)
                             }
+                            .foregroundStyle(palette.onAccent)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.vertical, 6)
+                            .padding(.vertical, Spacing.s)
                         }
-                        .listRowBackground(Color.accentColor.opacity(0.18))
+                        .listRowBackground(palette.accent)
                     }
                 }
 
-                Section("Da una scheda") {
+                Section {
                     if templates.isEmpty {
                         Text("Nessuna scheda. Creane una dalla scheda \"Schede\" oppure inizia una sessione libera.")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(palette.textSecondary)
+                            .hfListRow()
                     }
                     ForEach(templates) { template in
                         Button {
                             start { try WorkoutService(context: context).startSession(from: template) }
                         } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(template.name).font(.headline)
+                            HStack(alignment: .center, spacing: Spacing.m) {
+                                VStack(alignment: .leading, spacing: Spacing.xs) {
+                                    Text(template.name).font(.hfTitle).foregroundStyle(palette.textPrimary)
                                     Text("\(template.exercises.count) esercizi")
-                                        .font(.subheadline).foregroundStyle(.secondary)
+                                        .font(.subheadline).foregroundStyle(palette.textSecondary)
+                                    MuscleChipsView(exercises: template.sortedExercises.map(\.exercise))
                                 }
-                                Spacer()
+                                Spacer(minLength: 0)
                                 Image(systemName: "play.fill")
+                                    .font(.title3.weight(.black))
+                                    .foregroundStyle(palette.onAccent)
+                                    .frame(width: 48, height: 48)
+                                    .background(palette.accent, in: Circle())
+                                    .overlay(Circle().strokeBorder(palette.accentOutline, lineWidth: 1.5))
                             }
-                            .padding(.vertical, 6)
+                            .padding(.vertical, Spacing.s)
                             .contentShape(Rectangle())
+                            .opacity(openSessions.isEmpty ? 1 : 0.4)
                         }
                         .disabled(!openSessions.isEmpty)
+                        .hfListRow()
                     }
+                } header: {
+                    Eyebrow("Da una scheda").foregroundStyle(palette.textSecondary)
                 }
 
                 Section {
                     Button {
                         start { try WorkoutService(context: context).startEmptySession(name: "Allenamento libero") }
                     } label: {
-                        Label("Sessione libera", systemImage: "plus.circle")
-                            .font(.headline)
-                            .padding(.vertical, 6)
+                        Label("Sessione libera", systemImage: "plus.circle.fill")
+                            .font(.hfHeadline)
+                            .padding(.vertical, Spacing.s)
                             // Stesso aspetto "spento" delle card delle schede quando c'è una sessione aperta.
-                            .foregroundStyle(openSessions.isEmpty ? Color.accentColor : Color.secondary.opacity(0.6))
+                            .foregroundStyle(openSessions.isEmpty ? palette.accentText : palette.textSecondary)
+                            .opacity(openSessions.isEmpty ? 1 : 0.6)
                     }
                     .disabled(!openSessions.isEmpty)
+                    .hfListRow()
                 } footer: {
                     if !openSessions.isEmpty {
                         Text("Termina o scarta l'allenamento in corso prima di iniziarne un altro.")
+                            .foregroundStyle(palette.textSecondary)
                     }
                 }
             }
+            .hfScreenBackground()
             .navigationTitle("Allenamento")
             .alert("Errore", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
                 Button("OK", role: .cancel) {}

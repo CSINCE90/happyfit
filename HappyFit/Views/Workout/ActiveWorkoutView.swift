@@ -4,6 +4,7 @@ import SwiftData
 /// Sessione di allenamento in corso.
 struct ActiveWorkoutView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.palette) private var palette
     @State private var viewModel: ActiveWorkoutViewModel
 
     @State private var editingNumber: NumberTarget?
@@ -29,10 +30,13 @@ struct ActiveWorkoutView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                LazyVStack(spacing: 16) {
+                LazyVStack(spacing: Spacing.l) {
+                    // "In corso" = il primo esercizio con almeno una serie incompleta (derivato qui, non nel ViewModel).
+                    let currentID = viewModel.session.sortedExercises.first { $0.sets.contains { !$0.isCompleted } }?.id
                     ForEach(viewModel.session.sortedExercises) { item in
                         ExerciseCard(
                             item: item,
+                            isCurrent: item.id == currentID,
                             viewModel: viewModel,
                             onEditNumber: { editingNumber = $0 },
                             onEditRest: { editingRest = item }
@@ -43,14 +47,12 @@ struct ActiveWorkoutView: View {
                         showingPicker = true
                     } label: {
                         Label("Aggiungi esercizio", systemImage: "plus")
-                            .font(.headline)
-                            .frame(maxWidth: .infinity, minHeight: 44)
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.large)
+                    .buttonStyle(.hfSecondaryWide)
                 }
                 .padding()
             }
+            .background(palette.background)
             .navigationTitle(viewModel.session.name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

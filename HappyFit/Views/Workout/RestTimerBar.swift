@@ -1,19 +1,31 @@
 import SwiftUI
 
-/// Barra del timer di recupero, fissa in basso durante l'allenamento.
-/// Due righe (tempo, poi pulsanti) e Dynamic Type limitato, così non occupa mai più di circa un quinto dello schermo.
+/// Barra del timer di recupero, fissa in basso. È l'unico elemento in vetro (Liquid Glass su iOS 26, materiale
+/// traslucido prima); i pulsanti dentro sono pieni, mai vetro su vetro. Due righe e Dynamic Type limitato,
+/// così resta sotto circa un quinto dell'altezza dello schermo; con testo molto grande l'anello si nasconde.
 struct RestTimerBar: View {
+    @Environment(\.palette) private var palette
+    @Environment(\.dynamicTypeSize) private var typeSize
     let viewModel: ActiveWorkoutViewModel
 
+    private var progress: Double {
+        guard let total = viewModel.restTimer?.totalSeconds, total > 0 else { return 0 }
+        return Double(viewModel.restRemainingSeconds) / Double(total)
+    }
+
     var body: some View {
-        VStack(spacing: 8) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
+        VStack(spacing: Spacing.s) {
+            HStack(alignment: .center, spacing: Spacing.m) {
+                if !typeSize.isAccessibilitySize {
+                    TimerRing(progress: progress)
+                        .frame(width: 34, height: 34)
+                }
                 Text(Formatting.clock(viewModel.restRemainingSeconds))
-                    .font(.title.monospacedDigit().bold())
+                    .font(.hfTimer)
+                    .foregroundStyle(palette.textPrimary)
                     .lineLimit(1)
-                Text("Recupero")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                Eyebrow("Recupero")
+                    .foregroundStyle(palette.textSecondary)
                     .lineLimit(1)
                 Spacer(minLength: 0)
             }
@@ -24,14 +36,16 @@ struct RestTimerBar: View {
             }
         }
         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .padding(.horizontal, Spacing.l)
+        .padding(.vertical, Spacing.m)
         .frame(maxWidth: .infinity)
-        .background(.regularMaterial)
+        .modifier(GlassBarBackground())
+        .padding(.horizontal, Spacing.s)
+        .padding(.bottom, Spacing.xs)
     }
 
     private func buttons(compact: Bool) -> some View {
-        HStack(spacing: 10) {
+        HStack(spacing: Spacing.s) {
             barButton(compact ? nil : "−15 s", icon: "gobackward.15", label: "Meno 15 secondi") {
                 viewModel.addRest(seconds: -15)
             }
@@ -53,15 +67,27 @@ struct RestTimerBar: View {
                 Image(systemName: icon)
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 44)
+        .frame(maxWidth: .infinity)
         if prominent {
             Button(action: action) { content }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.hfPrimary)
                 .accessibilityLabel(label)
         } else {
             Button(action: action) { content }
-                .buttonStyle(.bordered)
+                .buttonStyle(.hfSecondaryWide)
                 .accessibilityLabel(label)
+        }
+    }
+}
+
+/// Sfondo in vetro della barra: Liquid Glass su iOS 26, materiale traslucido sulle versioni precedenti.
+private struct GlassBarBackground: ViewModifier {
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
+        if #available(iOS 26.0, *) {
+            content.glassEffect(.regular, in: shape)
+        } else {
+            content.background(.regularMaterial, in: shape)
         }
     }
 }

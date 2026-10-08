@@ -4,6 +4,7 @@ import SwiftData
 /// Storico degli allenamenti chiusi.
 struct HistoryView: View {
     @Environment(\.modelContext) private var context
+    @Environment(\.palette) private var palette
     @Query(filter: #Predicate<WorkoutSession> { $0.endedAt != nil }, sort: \WorkoutSession.startedAt, order: .reverse)
     private var sessions: [WorkoutSession]
     @State private var deleting: WorkoutSession?
@@ -20,15 +21,9 @@ struct HistoryView: View {
                     NavigationLink {
                         SessionDetailView(session: session)
                     } label: {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(session.name).font(.headline)
-                            Text(session.startedAt.formatted(date: .abbreviated, time: .shortened))
-                                .font(.subheadline).foregroundStyle(.secondary)
-                            Text("\(session.exercises.count) esercizi · \(session.completedSetCount) serie · \(Formatting.duration(from: session.startedAt, to: session.endedAt ?? session.startedAt))")
-                                .font(.caption).foregroundStyle(.secondary)
-                        }
-                        .frame(minHeight: 44, alignment: .leading)
+                        HistoryRow(session: session)
                     }
+                    .hfListRow()
                     .swipeActions {
                         Button("Elimina", systemImage: "trash") { deleting = session }
                             .tint(.red)
@@ -38,6 +33,7 @@ struct HistoryView: View {
                     }
                 }
             }
+            .hfScreenBackground()
             .navigationTitle("Storico")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
@@ -68,3 +64,33 @@ struct HistoryView: View {
         .modelContainer(PreviewData.container())
 }
 #endif
+
+/// Riga dello storico: data in grande, nome, totali e gruppi muscolari.
+private struct HistoryRow: View {
+    @Environment(\.palette) private var palette
+    let session: WorkoutSession
+
+    var body: some View {
+        HStack(alignment: .top, spacing: Spacing.m) {
+            VStack(spacing: 0) {
+                Text(session.startedAt.formatted(.dateTime.day()))
+                    .font(.system(.title, design: .rounded, weight: .black).monospacedDigit())
+                    .foregroundStyle(palette.accentText)
+                Eyebrow(session.startedAt.formatted(.dateTime.month(.abbreviated)))
+                    .foregroundStyle(palette.textSecondary)
+            }
+            .frame(minWidth: 48)
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Text(session.name).font(.hfHeadline).foregroundStyle(palette.textPrimary)
+                Text(session.startedAt.formatted(date: .abbreviated, time: .shortened))
+                    .font(.subheadline).foregroundStyle(palette.textSecondary)
+                Text("\(session.exercises.count) esercizi · \(session.completedSetCount) serie · \(Formatting.duration(from: session.startedAt, to: session.endedAt ?? session.startedAt))")
+                    .font(.system(.caption, design: .rounded, weight: .semibold))
+                    .foregroundStyle(palette.textSecondary)
+                MuscleChipsView(exercises: session.sortedExercises.map(\.exercise))
+            }
+        }
+        .padding(.vertical, Spacing.xs)
+        .frame(minHeight: 44, alignment: .leading)
+    }
+}

@@ -4,6 +4,8 @@ import Foundation
 enum AppSettings {
     static let defaultRestKey = "defaultRestSeconds"
     static let weightStepKey = "weightStepKg"
+    static let accentKey = "accentPreset"
+    static let appearanceKey = "appearance"
 
     static let defaultRestFallback = WorkoutService.fallbackRestSeconds
     static let weightStepFallback = 2.5

@@ -16,7 +16,7 @@ struct ExerciseCatalogView: View {
                     GroupFilterView(selected: Binding(get: { viewModel.selectedGroup }, set: { viewModel.selectedGroup = $0 }))
                     let visible = viewModel.visible(from: exercises)
                     if visible.isEmpty {
-                        Text("Nessun esercizio trovato.").foregroundStyle(.secondary)
+                        Text("Nessun esercizio trovato.").foregroundStyle(.secondary).hfListRow()
                     }
                     ForEach(visible) { exercise in
                         Button { editing = exercise } label: {
@@ -37,12 +37,16 @@ struct ExerciseCatalogView: View {
                             Button("Elimina", systemImage: "trash", role: .destructive) { viewModel.requestDelete(exercise) }
                         }
                     }
+                    .hfListRow()
                     Section {
                         NavigationLink("Esercizi archiviati (\(viewModel.archived(from: exercises).count))") {
                             ArchivedExercisesView()
                         }
+                        .font(.hfHeadline)
                     }
+                    .hfListRow()
                 }
+                .hfScreenBackground()
                 .searchable(text: Binding(get: { viewModel.searchText }, set: { viewModel.searchText = $0 }), prompt: "Cerca esercizio")
                 .sheet(isPresented: $showingNew) { ExerciseEditSheet(exercise: nil, viewModel: viewModel) }
                 .sheet(item: $editing) { ExerciseEditSheet(exercise: $0, viewModel: viewModel) }
@@ -70,13 +74,13 @@ struct ArchivedExercisesView: View {
     var body: some View {
         List {
             if archived.isEmpty {
-                Text("Nessun esercizio archiviato.").foregroundStyle(.secondary)
+                Text("Nessun esercizio archiviato.").foregroundStyle(.secondary).hfListRow()
             }
             ForEach(archived) { exercise in
                 HStack {
                     ExerciseRow(exercise: exercise)
                     Button("Ripristina") { viewModel?.unarchive(exercise) }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(.hfSecondary)
                 }
                 .frame(minHeight: 44)
                 .swipeActions {
@@ -88,7 +92,9 @@ struct ArchivedExercisesView: View {
                     Button("Elimina", systemImage: "trash", role: .destructive) { viewModel?.requestDelete(exercise) }
                 }
             }
+            .hfListRow()
         }
+        .hfScreenBackground()
         .navigationTitle("Archiviati")
         .task { if viewModel == nil { viewModel = ExerciseCatalogViewModel(context: context) } }
         .modifier(OptionalDeletionDialogs(viewModel: viewModel))

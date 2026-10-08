@@ -2,25 +2,32 @@ import SwiftUI
 
 /// Card di un esercizio nella sessione: nome, valori dell'ultima volta, serie.
 struct ExerciseCard: View {
+    @Environment(\.palette) private var palette
     let item: SessionExercise
+    /// Primo esercizio con serie ancora da fare (derivato nella vista che contiene le card).
+    var isCurrent = false
     let viewModel: ActiveWorkoutViewModel
     let onEditNumber: (NumberTarget) -> Void
     let onEditRest: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Spacing.m) {
             HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    if isCurrent {
+                        Eyebrow("In corso").foregroundStyle(palette.accentText)
+                    }
                     Text(item.exercise?.name ?? "Esercizio")
-                        .font(.title3.bold())
+                        .font(.hfTitle)
+                        .foregroundStyle(palette.textPrimary)
                     if let previous = viewModel.previousSummary(for: item) {
                         Text("Ultima volta: \(previous)")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .font(.system(.subheadline, design: .rounded, weight: .semibold).monospacedDigit())
+                            .foregroundStyle(palette.textSecondary)
                     } else {
                         Text("Nessuno storico")
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(palette.textSecondary)
                     }
                 }
                 Spacer()
@@ -32,9 +39,12 @@ struct ExerciseCard: View {
                 } label: {
                     Image(systemName: "ellipsis.circle")
                         .font(.title2)
+                        .foregroundStyle(palette.accentText)
                         .frame(minWidth: 44, minHeight: 44)
                 }
             }
+
+            SetProgressView(completed: item.completedSets.count, total: item.sets.count)
 
             ForEach(Array(item.sortedSets.enumerated()), id: \.element.id) { index, entry in
                 SetRowView(
@@ -56,8 +66,7 @@ struct ExerciseCard: View {
                 VStack(spacing: 12) { addSetButton; restButton }
             }
         }
-        .padding(12)
-        .background(.background.secondary, in: RoundedRectangle(cornerRadius: 16))
+        .hfCard(highlighted: isCurrent)
     }
 
     private var addSetButton: some View {
@@ -67,10 +76,9 @@ struct ExerciseCard: View {
             Label("Serie", systemImage: "plus")
                 .lineLimit(1)
                 .fixedSize(horizontal: true, vertical: false)
-                .frame(minHeight: 44)
-                .padding(.horizontal, 8)
+                .padding(.horizontal, Spacing.s)
         }
-        .buttonStyle(.bordered)
+        .buttonStyle(.hfSecondary)
     }
 
     private var restButton: some View {
@@ -78,9 +86,8 @@ struct ExerciseCard: View {
             Label(Formatting.rest(item.restSeconds), systemImage: "timer")
                 .lineLimit(1)
                 .fixedSize(horizontal: true, vertical: false)
-                .frame(minHeight: 44)
-                .padding(.horizontal, 8)
+                .padding(.horizontal, Spacing.s)
         }
-        .buttonStyle(.bordered)
+        .buttonStyle(.hfSecondary)
     }
 }

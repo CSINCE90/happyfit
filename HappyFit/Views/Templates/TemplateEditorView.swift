@@ -31,17 +31,20 @@ struct TemplateEditorView: View {
                 }
             }
             .onMove { viewModel?.moveExercises(of: template, from: $0, to: $1) }
+            .hfListRow()
 
             Section {
                 Button {
                     showingPicker = true
                 } label: {
                     Label("Aggiungi esercizio", systemImage: "plus")
-                        .font(.headline)
+                        .font(.hfHeadline)
                         .frame(minHeight: 44)
                 }
             }
+            .hfListRow()
         }
+        .hfScreenBackground()
         .navigationTitle(template.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -111,6 +114,7 @@ extension TemplateEditorView {
 
 /// Riga dell'editor: nome esercizio e tre valori, ciascuno su una riga (etichetta a sinistra, − valore + a destra).
 private struct TemplateRowEditor: View {
+    @Environment(\.palette) private var palette
     let row: TemplateExercise
     let onRemove: () -> Void
     let onChange: (Int?, Int?, Int?) -> Void
@@ -118,13 +122,15 @@ private struct TemplateRowEditor: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text(row.exercise?.name ?? "Esercizio").font(.headline)
+                Text(row.exercise?.name ?? "Esercizio").font(.hfHeadline).foregroundStyle(palette.textPrimary)
+                if let group = row.exercise?.muscleGroup { MuscleChip(group: group) }
                 Spacer(minLength: 8)
                 Menu {
                     Button("Rimuovi dalla scheda", systemImage: "trash", role: .destructive, action: onRemove)
                 } label: {
                     Image(systemName: "ellipsis.circle")
                         .font(.title3)
+                        .foregroundStyle(palette.accentText)
                         .frame(width: 44, height: 44)
                         .contentShape(Rectangle())
                 }
@@ -146,6 +152,7 @@ private struct TemplateRowEditor: View {
 
 /// Riga etichetta + − valore +, alta almeno 48 pt; con testo molto grande va su due righe.
 private struct ValueRow: View {
+    @Environment(\.palette) private var palette
     let label: String
     let valueText: String
     let range: ClosedRange<Int>
@@ -156,12 +163,12 @@ private struct ValueRow: View {
     var body: some View {
         ViewThatFits(in: .horizontal) {
             HStack(spacing: 8) {
-                Text(label).lineLimit(1)
+                Text(label).lineLimit(1).foregroundStyle(palette.textSecondary)
                 Spacer(minLength: 8)
                 controls(valueMinWidth: 72)
             }
             VStack(alignment: .leading, spacing: 4) {
-                Text(label)
+                Text(label).foregroundStyle(palette.textSecondary)
                 controls(valueMinWidth: 0)
             }
         }
@@ -175,9 +182,11 @@ private struct ValueRow: View {
                 onChange(max(value - step, range.lowerBound))
             }
             Text(valueText)
-                .font(.body.monospacedDigit().bold())
+                .font(.system(.body, design: .rounded, weight: .heavy).monospacedDigit())
+                .foregroundStyle(palette.textPrimary)
                 .lineLimit(1)
-                .minimumScaleFactor(0.7)
+                // Larghezza reale del testo: se non ci sta, ViewThatFits passa alla versione su due righe.
+                .fixedSize(horizontal: true, vertical: false)
                 .frame(minWidth: valueMinWidth, maxWidth: valueMinWidth == 0 ? .infinity : nil)
             StepButton(systemImage: "plus", label: "\(label) più", isEnabled: value < range.upperBound) {
                 onChange(min(value + step, range.upperBound))

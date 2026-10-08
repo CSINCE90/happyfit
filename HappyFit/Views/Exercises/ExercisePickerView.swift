@@ -28,7 +28,9 @@ struct ExercisePickerView: View {
                             }
                             .buttonStyle(.plain)
                         }
+                        .hfListRow()
                     }
+                    .hfScreenBackground()
                     .searchable(text: Binding(get: { viewModel.searchText }, set: { viewModel.searchText = $0 }), prompt: "Cerca esercizio")
                 } else {
                     ProgressView()
@@ -50,16 +52,19 @@ struct ExercisePickerView: View {
     }
 }
 
-/// Riga di un esercizio: nome e gruppo muscolare.
+/// Riga di un esercizio: nome e chip del gruppo muscolare.
 struct ExerciseRow: View {
+    @Environment(\.palette) private var palette
     let exercise: Exercise
 
     var body: some View {
-        HStack {
+        HStack(spacing: Spacing.s) {
             Text(exercise.name)
-            Spacer()
+                .font(.system(.body, design: .rounded, weight: .semibold))
+                .foregroundStyle(palette.textPrimary)
+            Spacer(minLength: Spacing.s)
             if let group = exercise.muscleGroup {
-                Text(group.displayName).font(.caption).foregroundStyle(.secondary)
+                MuscleChip(group: group)
             }
         }
     }
@@ -71,23 +76,16 @@ struct GroupFilterView: View {
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack {
-                chip("Tutti", isOn: selected == nil) { selected = nil }
+            HStack(spacing: Spacing.s) {
+                FilterChip(title: "Tutti", isOn: selected == nil) { selected = nil }
                 ForEach(MuscleGroup.allCases, id: \.self) { group in
-                    chip(group.displayName, isOn: selected == group) { selected = group }
+                    FilterChip(title: group.displayName, isOn: selected == group) { selected = group }
                 }
             }
             .padding(.horizontal)
         }
         .listRowInsets(EdgeInsets())
         .listRowBackground(Color.clear)
-    }
-
-    private func chip(_ title: String, isOn: Bool, action: @escaping () -> Void) -> some View {
-        Button(title, action: action)
-            .buttonStyle(.bordered)
-            .tint(isOn ? .accentColor : .secondary)
-            .controlSize(.regular)
     }
 }
 

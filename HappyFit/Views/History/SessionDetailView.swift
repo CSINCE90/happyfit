@@ -5,6 +5,7 @@ import SwiftData
 struct SessionDetailView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.palette) private var palette
     @State private var viewModel: SessionDetailViewModel?
 
     @State private var correcting: SetEntry?
@@ -42,25 +43,16 @@ struct SessionDetailView: View {
                 LabeledContent("Durata", value: Formatting.duration(from: session.startedAt, to: session.endedAt ?? session.startedAt))
                 LabeledContent("Serie completate", value: "\(session.completedSetCount)")
             }
+            .hfListRow()
 
             ForEach(session.sortedExercises) { item in
                 Section {
                     ForEach(Array(item.sortedSets.enumerated()), id: \.element.id) { index, entry in
                         Button { correcting = entry } label: {
-                            HStack {
-                                Text("\(index + 1)").foregroundStyle(.secondary).frame(width: 28, alignment: .leading)
-                                Text(Formatting.setSummary(weightKg: entry.weightKg, reps: entry.reps))
-                                    .font(.body.monospacedDigit())
-                                Spacer()
-                                if entry.type != .normal {
-                                    Text(entry.type.displayName).font(.caption).foregroundStyle(entry.type.color)
-                                }
-                                Image(systemName: "pencil").foregroundStyle(.secondary)
-                            }
-                            .frame(minHeight: 44)
-                            .contentShape(Rectangle())
+                            HistorySetRow(index: index + 1, entry: entry)
                         }
                         .buttonStyle(.plain)
+                        .hfListRow()
                         .swipeActions {
                             Button("Elimina", systemImage: "trash") { deletingSet = entry }
                                 .tint(.red)
@@ -69,11 +61,16 @@ struct SessionDetailView: View {
                     Button {
                         viewModel?.addSet(to: item)
                     } label: {
-                        Label("Aggiungi serie", systemImage: "plus").frame(minHeight: 44)
+                        Label("Aggiungi serie", systemImage: "plus").font(.hfHeadline).frame(minHeight: 44)
                     }
+                    .hfListRow()
                 } header: {
                     HStack {
                         Text(item.exercise?.name ?? "Esercizio")
+                            .font(.hfHeadline)
+                            .foregroundStyle(palette.textPrimary)
+                            .textCase(nil)
+                        if let group = item.exercise?.muscleGroup { MuscleChip(group: group) }
                         Spacer()
                         Menu {
                             Button("Rimuovi esercizio", systemImage: "trash", role: .destructive) { removingExercise = item }
@@ -87,14 +84,21 @@ struct SessionDetailView: View {
 
             Section {
                 Button { showingPicker = true } label: {
-                    Label("Aggiungi esercizio", systemImage: "plus").frame(minHeight: 44)
+                    Label("Aggiungi esercizio", systemImage: "plus").font(.hfHeadline).frame(minHeight: 44)
                 }
+                .hfListRow()
             }
             Section {
-                Button("Elimina allenamento", role: .destructive) { showingDelete = true }
-                    .frame(minHeight: 44)
+                Button(role: .destructive) { showingDelete = true } label: {
+                    Label("Elimina allenamento", systemImage: "trash")
+                        .font(.hfHeadline)
+                        .foregroundStyle(palette.destructive)
+                        .frame(minHeight: 44)
+                }
+                .hfListRow()
             }
         }
+        .hfScreenBackground()
         .navigationTitle(session.name)
         .navigationBarTitleDisplayMode(.inline)
         .sheet(item: $correcting) { entry in
@@ -162,6 +166,38 @@ struct SessionDetailView: View {
             Spacer()
             Text(value).foregroundStyle(.secondary).multilineTextAlignment(.trailing)
             Image(systemName: icon).foregroundStyle(.secondary)
+        }
+        .frame(minHeight: 44)
+        .contentShape(Rectangle())
+    }
+}
+
+/// Riga di una serie nel dettaglio: numero, peso × ripetizioni grandi, tipo con icona e parola.
+private struct HistorySetRow: View {
+    @Environment(\.palette) private var palette
+    let index: Int
+    let entry: SetEntry
+
+    var body: some View {
+        HStack(spacing: Spacing.m) {
+            Text("\(index)")
+                .font(.system(.subheadline, design: .rounded, weight: .heavy).monospacedDigit())
+                .foregroundStyle(palette.textSecondary)
+                .frame(minWidth: 24, alignment: .leading)
+            Text(Formatting.setSummary(weightKg: entry.weightKg, reps: entry.reps))
+                .font(.system(.title3, design: .rounded, weight: .heavy).monospacedDigit())
+                .foregroundStyle(palette.textPrimary)
+            Spacer(minLength: Spacing.s)
+            if entry.type != .normal {
+                Label {
+                    Text(entry.type.displayName)
+                } icon: {
+                    if let symbol = entry.type.symbol { Image(systemName: symbol) }
+                }
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(palette.textSecondary)
+            }
+            Image(systemName: "pencil").foregroundStyle(palette.accentText)
         }
         .frame(minHeight: 44)
         .contentShape(Rectangle())

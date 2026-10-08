@@ -4,6 +4,7 @@ import SwiftData
 /// Lista delle schede: crea, rinomina, duplica, riordina, elimina.
 struct TemplateListView: View {
     @Environment(\.modelContext) private var context
+    @Environment(\.palette) private var palette
     @Query(sort: \WorkoutTemplate.order) private var templates: [WorkoutTemplate]
     @State private var viewModel: TemplatesViewModel?
 
@@ -23,10 +24,12 @@ struct TemplateListView: View {
                     NavigationLink {
                         TemplateEditorView(template: template)
                     } label: {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(template.name).font(.headline)
-                            Text("\(template.exercises.count) esercizi").font(.subheadline).foregroundStyle(.secondary)
+                        VStack(alignment: .leading, spacing: Spacing.xs) {
+                            Text(template.name).font(.hfTitle).foregroundStyle(palette.textPrimary)
+                            Text("\(template.exercises.count) esercizi").font(.subheadline).foregroundStyle(palette.textSecondary)
+                            MuscleChipsView(exercises: template.sortedExercises.map(\.exercise))
                         }
+                        .padding(.vertical, Spacing.xs)
                         .padding(.trailing, 48)
                         .frame(minHeight: 44, alignment: .leading)
                     }
@@ -39,6 +42,7 @@ struct TemplateListView: View {
                         } label: {
                             Image(systemName: "ellipsis.circle")
                                 .font(.title3)
+                                .foregroundStyle(palette.accentText)
                                 .frame(width: 44, height: 44)
                                 .contentShape(Rectangle())
                         }
@@ -58,7 +62,9 @@ struct TemplateListView: View {
                     }
                 }
                 .onMove { viewModel?.move(templates, from: $0, to: $1) }
+                .hfListRow()
             }
+            .hfScreenBackground()
             .navigationTitle("Schede")
             .environment(\.editMode, $editMode)
             .toolbar {
