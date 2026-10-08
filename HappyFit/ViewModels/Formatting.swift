@@ -29,6 +29,11 @@ enum Formatting {
         return minutes >= 60 ? "\(minutes / 60) h \(minutes % 60) min" : "\(minutes) min"
     }
 
+    /// "1 esercizio", "3 esercizi": numero con singolare o plurale corretto.
+    static func count(_ value: Int, _ singular: String, _ plural: String) -> String {
+        "\(value) \(value == 1 ? singular : plural)"
+    }
+
     /// Converte il testo di un campo ("52,5" o "52.5") in numero.
     static func parseNumber(_ text: String) -> Double? {
         Double(text.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: "."))

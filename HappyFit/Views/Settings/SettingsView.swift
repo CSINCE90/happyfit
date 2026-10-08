@@ -96,9 +96,11 @@ private struct AccentPicker: View {
     @Binding var selection: String
 
     var body: some View {
+        // Una riga su tutta la larghezza se ci sta (6 × 52 pt), altrimenti griglia 3×2: colonne uguali, spaziatura uniforme.
         ViewThatFits(in: .horizontal) {
             HStack(spacing: Spacing.s) { circles }
-            LazyVGrid(columns: Array(repeating: GridItem(.fixed(48), spacing: Spacing.s), count: 3), alignment: .leading, spacing: Spacing.s) { circles }
+                .frame(maxWidth: .infinity)
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: Spacing.s), count: 3), spacing: Spacing.m) { circles }
         }
         .padding(.vertical, Spacing.xs)
     }
@@ -117,6 +119,8 @@ private struct AccentPicker: View {
                 .frame(width: 44, height: 44)
                 .overlay(Circle().strokeBorder(palette.textPrimary, lineWidth: preset.rawValue == selection ? 3 : 0).padding(-4))
                 .padding(4)
+                .frame(maxWidth: .infinity, minHeight: 52)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Accento \(preset.displayName)")

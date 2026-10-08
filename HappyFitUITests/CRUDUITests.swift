@@ -15,8 +15,16 @@ final class CRUDUITests: XCTestCase {
         app.cells.containing(.staticText, identifier: text).firstMatch
     }
 
+    /// Aspetta che l'elemento sparisca (anche dopo un'animazione di uscita).
+    private func waitForDisappearance(_ element: XCUIElement, timeout: TimeInterval = 5) -> Bool {
+        let gone = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: element)
+        return XCTWaiter().wait(for: [gone], timeout: timeout) == .completed
+    }
+
     private func search(_ app: XCUIApplication, _ text: String) {
         let field = app.searchFields.firstMatch
+        // In una schermata aperta da un'altra la barra di ricerca compare trascinando verso il basso.
+        if !field.waitForExistence(timeout: 3) { app.swipeDown() }
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         field.tap()
         field.typeText(text)
@@ -121,17 +129,47 @@ final class CRUDUITests: XCTestCase {
     }
 
     func testExerciseOnlyInTemplatesShowsWhichAndAsksConfirmation() {
-        let app = launch("catalog")
-        search(app, "Squat con")
-        let row = cell(app, "Squat con bilanciere")
-        XCTAssertTrue(row.waitForExistence(timeout: 5))
-        row.swipeLeft()
-        app.buttons["Elimina"].tap()
+        let app = launch("templates")
+        XCTAssertTrue(app.buttons["Azioni scheda Gambe"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["Impostazioni"].tap()
+        let catalogLink = app.buttons["Catalogo esercizi"]
+        for _ in 0..<6 where !catalogLink.isHittable { app.swipeUp() }
+        catalogLink.tap()
         let confirm = app.buttons["Rimuovi dalle schede ed elimina"]
+
+        // Una sola scheda ("Gambe"): la frase la nomina al singolare; confermando l'esercizio sparisce.
+        search(app, "Squat con")
+        let squat = cell(app, "Squat con bilanciere")
+        XCTAssertTrue(squat.waitForExistence(timeout: 5))
+        squat.swipeLeft()
+        app.buttons["Elimina"].tap()
         XCTAssertTrue(confirm.waitForExistence(timeout: 3))
-        XCTAssertTrue(app.staticTexts["È usato nelle schede: Gambe. Se continui verrà tolto da queste schede e poi eliminato."].exists)
+        XCTAssertTrue(app.staticTexts["È usato nella scheda: Gambe. Se continui verrà tolto da questa scheda e poi eliminato."].exists)
         confirm.tap()
-        XCTAssertFalse(app.staticTexts["Squat con bilanciere"].waitForExistence(timeout: 2))
+        XCTAssertTrue(waitForDisappearance(app.staticTexts["Squat con bilanciere"]))
+
+        // Più schede: duplico "Gambe" (ora contiene "Leg press"); la frase elenca entrambe al plurale.
+        // Prima chiudo la tastiera della ricerca, che copre la barra delle schede.
+        app.searchFields.firstMatch.typeText("\n")
+        XCTAssertTrue(app.tabBars.buttons["Schede"].waitForExistence(timeout: 3))
+        app.tabBars.buttons["Schede"].tap()
+        XCTAssertTrue(app.buttons["Azioni scheda Gambe"].waitForExistence(timeout: 5))
+        app.buttons["Azioni scheda Gambe"].tap()
+        app.buttons["Duplica"].tap()
+        XCTAssertTrue(app.staticTexts["Gambe (copia)"].waitForExistence(timeout: 3))
+        app.tabBars.buttons["Impostazioni"].tap()
+        let field = app.searchFields.firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.tap()
+        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 12) + "Leg press")
+        let legPress = cell(app, "Leg press")
+        XCTAssertTrue(legPress.waitForExistence(timeout: 5))
+        legPress.swipeLeft()
+        app.buttons["Elimina"].tap()
+        XCTAssertTrue(confirm.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["È usato nelle schede: Gambe, Gambe (copia). Se continui verrà tolto da queste schede e poi eliminato."].exists)
+        confirm.tap()
+        XCTAssertTrue(waitForDisappearance(app.staticTexts["Leg press"]))
     }
 
     func testEditSheetHasVisibleArchiveAndDelete() {

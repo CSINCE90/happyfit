@@ -84,7 +84,7 @@ private struct HistoryRow: View {
                 Text(session.name).font(.hfHeadline).foregroundStyle(palette.textPrimary)
                 Text(session.startedAt.formatted(date: .abbreviated, time: .shortened))
                     .font(.subheadline).foregroundStyle(palette.textSecondary)
-                Text("\(session.exercises.count) esercizi · \(session.completedSetCount) serie · \(Formatting.duration(from: session.startedAt, to: session.endedAt ?? session.startedAt))")
+                Text("\(Formatting.count(session.exercises.count, "esercizio", "esercizi")) · \(session.completedSetCount) serie · \(Formatting.duration(from: session.startedAt, to: session.endedAt ?? session.startedAt))")
                     .font(.system(.caption, design: .rounded, weight: .semibold))
                     .foregroundStyle(palette.textSecondary)
                 MuscleChipsView(exercises: session.sortedExercises.map(\.exercise))

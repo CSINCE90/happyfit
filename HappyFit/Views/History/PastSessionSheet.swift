@@ -3,6 +3,7 @@ import SwiftUI
 /// Registra a posteriori un allenamento già fatto (poi si completa dal dettaglio).
 struct PastSessionSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.palette) private var palette
     let viewModel: HistoryViewModel
 
     @State private var name = ""
@@ -21,38 +22,48 @@ struct PastSessionSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Nome") {
-                    TextField("Allenamento", text: $name)
+                Section {
+                    TextField("Allenamento", text: $name).font(.hfHeadline).frame(minHeight: 44)
+                } header: {
+                    Eyebrow("Nome")
                 }
-                Section("Orari") {
-                    DatePicker("Inizio", selection: $start)
-                    DatePicker("Fine", selection: $end)
+                .hfListRow()
+                Section {
+                    DatePicker("Inizio", selection: $start).frame(minHeight: 44)
+                    DatePicker("Fine", selection: $end).frame(minHeight: 44)
                     if endsBeforeStart {
-                        Text("La fine non può precedere l'inizio.").foregroundStyle(.red)
+                        Label("La fine non può precedere l'inizio.", systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(palette.destructive)
                     }
+                } header: {
+                    Eyebrow("Orari")
                 }
+                .hfListRow()
                 Section {
                     Button {
                         showingPicker = true
                     } label: {
                         HStack {
-                            Text("Esercizio")
+                            Text("Esercizio").foregroundStyle(palette.textPrimary)
                             Spacer()
-                            Text(exercise?.name ?? "Scegli…").foregroundStyle(.secondary)
+                            Text(exercise?.name ?? "Scegli…").font(.hfHeadline).foregroundStyle(palette.accentText)
                         }
                         .frame(minHeight: 44)
                     }
-                    TextField("Peso (kg)", text: $weightText).keyboardType(.decimalPad)
-                    TextField("Ripetizioni", text: $repsText).keyboardType(.numberPad)
+                    TextField("Peso (kg)", text: $weightText).keyboardType(.decimalPad).font(.hfHeadline.monospacedDigit()).frame(minHeight: 44)
+                    TextField("Ripetizioni", text: $repsText).keyboardType(.numberPad).font(.hfHeadline.monospacedDigit()).frame(minHeight: 44)
                 } header: {
-                    Text("Prima serie")
+                    Eyebrow("Prima serie")
                 } footer: {
                     Text("Un allenamento concluso ha almeno una serie completata. Le altre le aggiungi dal dettaglio.")
                 }
+                .hfListRow()
                 if let message = viewModel.errorMessage {
-                    Section { Text(message).foregroundStyle(.red) }
+                    Section { Label(message, systemImage: "exclamationmark.triangle.fill").foregroundStyle(palette.destructive) }
+                        .hfListRow()
                 }
             }
+            .hfScreenBackground()
             .navigationTitle("Nuovo allenamento")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

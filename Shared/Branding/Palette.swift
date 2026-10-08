@@ -102,8 +102,10 @@ struct Palette: Sendable {
 
     /// Accento pieno (con `ink` sopra).
     var accent: Color { accentPreset.fill }
-    /// Accento usato come colore di testo o icona su card e sfondo.
-    var accentText: Color { isDark ? accentPreset.fill : accentPreset.textOnLight }
+    /// Accento usato come colore di testo o di icona isolata. Nel tema chiaro nessuna variante dell'accento è
+    /// insieme leggibile (≥ 4.5:1) e distinta dai chip profondi dei gruppi: si usa il testo scuro, e il colore
+    /// vivo resta solo sulle forme piene (pulsanti, cerchio ✓, progresso, anello, filetto, filtro, selettore).
+    var accentText: Color { isDark ? accentPreset.fill : textPrimary }
     /// Bordo delle forme piene d'accento: nel tema chiaro i colori vivaci su bianco hanno poco contrasto
     /// di forma, quindi si contornano con la variante scura (nel tema scuro non serve).
     var accentOutline: Color { isDark ? .clear : accentPreset.textOnLight }
@@ -129,19 +131,20 @@ struct Palette: Sendable {
             case .core: return Color(hex: 0x0E6B73)
             }
         } else {
+            // Stesse tinte profonde del tema scuro; il petto è più verso il lampone per staccarsi dal rosso distruttivo.
             switch group {
-            case .petto: return Color(hex: 0xCC958F)
-            case .schiena: return Color(hex: 0xD9EEFF)
-            case .gambe: return Color(hex: 0xC4CCA3)
-            case .spalle: return Color(hex: 0xFFE8D9)
-            case .braccia: return Color(hex: 0xECD0F5)
-            case .core: return Color(hex: 0x78F0D2)
+            case .petto: return Color(hex: 0x9D174D)
+            case .schiena: return Color(hex: 0x1E40AF)
+            case .gambe: return Color(hex: 0x15803D)
+            case .spalle: return Color(hex: 0x9A4A0B)
+            case .braccia: return Color(hex: 0x8E1B8A)
+            case .core: return Color(hex: 0x0E6B73)
             }
         }
     }
 
-    /// Testo sopra il chip di un gruppo muscolare.
-    var onMuscle: Color { isDark ? .white : Self.ink }
+    /// Testo sopra il chip di un gruppo muscolare (sempre bianco: le tinte sono profonde in entrambi i temi).
+    var onMuscle: Color { .white }
 }
 
 private struct PaletteKey: EnvironmentKey {

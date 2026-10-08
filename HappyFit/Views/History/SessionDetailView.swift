@@ -207,6 +207,7 @@ private struct HistorySetRow: View {
 /// Correzione di una serie: peso, ripetizioni, tipo; oppure eliminazione.
 struct SetCorrectionSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.palette) private var palette
     @State private var weightText: String
     @State private var repsText: String
     @State private var type: SetType
@@ -226,28 +227,44 @@ struct SetCorrectionSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Peso (kg)") {
-                    TextField("Peso", text: $weightText).keyboardType(.decimalPad).font(.title2.monospacedDigit())
+                Section {
+                    TextField("Peso", text: $weightText).keyboardType(.decimalPad).font(.hfNumber).frame(minHeight: 52)
+                } header: {
+                    Eyebrow("Peso (kg)")
                 }
-                Section("Ripetizioni") {
-                    TextField("Ripetizioni", text: $repsText).keyboardType(.numberPad).font(.title2.monospacedDigit())
+                .hfListRow()
+                Section {
+                    TextField("Ripetizioni", text: $repsText).keyboardType(.numberPad).font(.hfNumber).frame(minHeight: 52)
+                } header: {
+                    Eyebrow("Ripetizioni")
                 }
-                Section("Tipo di serie") {
-                    Picker("Tipo", selection: $type) {
-                        ForEach(SetType.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                .hfListRow()
+                Section {
+                    // Chip da almeno 44 pt (il selettore segmentato di sistema è più basso).
+                    ChipFlow(spacing: Spacing.s) {
+                        ForEach(SetType.allCases, id: \.self) { option in
+                            FilterChip(title: option.displayName, isOn: type == option) { type = option }
+                        }
                     }
-                    .pickerStyle(.segmented)
+                    .padding(.vertical, Spacing.xs)
+                } header: {
+                    Eyebrow("Tipo di serie")
                 }
+                .hfListRow()
                 if let onDelete {
                     Section {
                         Button("Elimina serie", systemImage: "trash", role: .destructive) {
                             dismiss()
                             onDelete()
                         }
+                        .font(.hfHeadline)
+                        .foregroundStyle(palette.destructive)
                         .frame(minHeight: 44)
                     }
+                    .hfListRow()
                 }
             }
+            .hfScreenBackground()
             .navigationTitle("Correggi serie")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -269,6 +286,7 @@ struct SetCorrectionSheet: View {
 /// Modifica di inizio e fine: la fine non può precedere l'inizio.
 struct SessionTimesSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.palette) private var palette
     @State private var start: Date
     @State private var end: Date
     /// Ritorna true se il salvataggio è andato a buon fine.
@@ -286,14 +304,19 @@ struct SessionTimesSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    DatePicker("Inizio", selection: $start)
-                    DatePicker("Fine", selection: $end)
+                    DatePicker("Inizio", selection: $start).frame(minHeight: 44)
+                    DatePicker("Fine", selection: $end).frame(minHeight: 44)
+                } header: {
+                    Eyebrow("Orari")
                 } footer: {
                     if endsBeforeStart {
-                        Text("La fine non può precedere l'inizio.").foregroundStyle(.red)
+                        Label("La fine non può precedere l'inizio.", systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(palette.destructive)
                     }
                 }
+                .hfListRow()
             }
+            .hfScreenBackground()
             .navigationTitle("Data e ora")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

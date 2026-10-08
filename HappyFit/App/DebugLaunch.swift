@@ -81,6 +81,11 @@ struct DebugScreenView: View {
             ExerciseEditSheet(exercise: nil, viewModel: ExerciseCatalogViewModel(context: container.mainContext))
         case "set-correction":
             SetCorrectionSheet(entry: PreviewData.closedSession(in: container).sortedExercises[0].sortedSets[0], onSave: { _, _, _ in })
+        case "rest-edit": RestEditSheet(seconds: 90) { _ in }
+        case "past-session": PastSessionSheet(viewModel: HistoryViewModel(context: container.mainContext))
+        case "session-times":
+            let session = PreviewData.closedSession(in: container)
+            SessionTimesSheet(start: session.startedAt, end: session.endedAt ?? session.startedAt) { _, _ in true }
         case "picker": ExercisePickerView { _ in }
         case "active": ActiveWorkoutView(session: PreviewData.openSession(in: container), context: container.mainContext)
         case "active-timer":

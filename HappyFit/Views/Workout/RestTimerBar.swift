@@ -40,7 +40,8 @@ struct RestTimerBar: View {
         .padding(.vertical, Spacing.m)
         .frame(maxWidth: .infinity)
         .modifier(GlassBarBackground())
-        .padding(.horizontal, Spacing.s)
+        // Stesso margine laterale delle card della sessione (16 pt), così anello e "Salta" non toccano il bordo.
+        .padding(.horizontal, Spacing.l)
         .padding(.bottom, Spacing.xs)
     }
 
@@ -95,6 +96,7 @@ private struct GlassBarBackground: ViewModifier {
 /// Modifica al volo del recupero di un esercizio (vale solo per questa sessione).
 struct RestEditSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.palette) private var palette
     @State var seconds: Int
     let onSave: (Int) -> Void
 
@@ -105,15 +107,33 @@ struct RestEditSheet: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    Stepper(value: $seconds, in: 0...900, step: 15) {
-                        Text(Formatting.rest(seconds)).font(.title2.monospacedDigit())
+            VStack(spacing: Spacing.l) {
+                VStack(spacing: Spacing.m) {
+                    Eyebrow("Recupero").foregroundStyle(palette.textSecondary)
+                    HStack(spacing: Spacing.l) {
+                        StepButton(systemImage: "minus", label: "Recupero meno", isEnabled: seconds > 0) {
+                            seconds = max(seconds - 15, 0)
+                        }
+                        Text(Formatting.rest(seconds))
+                            .font(.hfNumber)
+                            .foregroundStyle(palette.textPrimary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.6)
+                            .frame(maxWidth: .infinity)
+                        StepButton(systemImage: "plus", label: "Recupero più", isEnabled: seconds < 900) {
+                            seconds = min(seconds + 15, 900)
+                        }
                     }
-                } footer: {
-                    Text("La modifica vale solo per questo allenamento.")
                 }
+                .hfCard(padding: Spacing.l)
+                Text("La modifica vale solo per questo allenamento.")
+                    .font(.footnote)
+                    .foregroundStyle(palette.textSecondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .padding()
+            .frame(maxHeight: .infinity, alignment: .top)
+            .background(palette.background)
             .navigationTitle("Recupero")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -123,6 +143,6 @@ struct RestEditSheet: View {
                 }
             }
         }
-        .presentationDetents([.medium])
+        .presentationDetents([.medium, .large])
     }
 }

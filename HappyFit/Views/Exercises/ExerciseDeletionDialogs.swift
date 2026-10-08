@@ -68,6 +68,9 @@ struct ExerciseDeletionDialogs: ViewModifier {
 
     private var templatesMessage: String {
         guard case .confirmRemoveFromTemplates(_, let templates) = viewModel.deletionPlan else { return "" }
+        if templates.count == 1 {
+            return "È usato nella scheda: \(templates[0]). Se continui verrà tolto da questa scheda e poi eliminato."
+        }
         return "È usato nelle schede: \(templates.joined(separator: ", ")). Se continui verrà tolto da queste schede e poi eliminato."
     }
 }

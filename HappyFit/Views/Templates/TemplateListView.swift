@@ -26,7 +26,7 @@ struct TemplateListView: View {
                     } label: {
                         VStack(alignment: .leading, spacing: Spacing.xs) {
                             Text(template.name).font(.hfTitle).foregroundStyle(palette.textPrimary)
-                            Text("\(template.exercises.count) esercizi").font(.subheadline).foregroundStyle(palette.textSecondary)
+                            Text(Formatting.count(template.exercises.count, "esercizio", "esercizi")).font(.subheadline).foregroundStyle(palette.textSecondary)
                             MuscleChipsView(exercises: template.sortedExercises.map(\.exercise))
                         }
                         .padding(.vertical, Spacing.xs)

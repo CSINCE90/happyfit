@@ -30,7 +30,7 @@ struct SetProgressView: View {
         .frame(height: 6)
         .animation(reduceMotion ? nil : .easeOut(duration: 0.25), value: completed)
         .accessibilityElement()
-        .accessibilityLabel("\(completed) serie completate su \(total)")
+        .accessibilityLabel("\(Formatting.count(completed, "serie completata", "serie completate")) su \(total)")
     }
 }
 

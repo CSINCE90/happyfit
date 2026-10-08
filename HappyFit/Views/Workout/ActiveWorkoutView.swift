@@ -102,7 +102,9 @@ struct ActiveWorkoutView: View {
                 Button("Termina e salva", role: .destructive) { viewModel.finish() }
                 Button("Continua l'allenamento", role: .cancel) {}
             } message: {
-                Text("Le \(viewModel.incompleteSetCount) serie non completate verranno eliminate.")
+                Text(viewModel.incompleteSetCount == 1
+                     ? "La serie non completata verrà eliminata."
+                     : "Le \(viewModel.incompleteSetCount) serie non completate verranno eliminate.")
             }
             .confirmationDialog("Nessuna serie completata", isPresented: $showingDiscardDialog, titleVisibility: .visible) {
                 Button("Scarta allenamento", role: .destructive) { viewModel.discard() }

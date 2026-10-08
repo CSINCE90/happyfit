@@ -3,6 +3,7 @@ import SwiftUI
 /// Crea o modifica un esercizio (nome, gruppo muscolare, recupero predefinito).
 struct ExerciseEditSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.palette) private var palette
 
     let exercise: Exercise?
     let viewModel: ExerciseCatalogViewModel
@@ -25,46 +26,74 @@ struct ExerciseEditSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Nome") {
+                Section {
                     TextField("Nome esercizio", text: $name)
+                        .font(.hfHeadline)
                         .textInputAutocapitalization(.sentences)
                         .focused($nameFocused)
+                        .frame(minHeight: 44)
+                } header: {
+                    Eyebrow("Nome")
                 }
-                Section("Gruppo muscolare") {
+                .hfListRow()
+                Section {
                     Picker("Gruppo", selection: $group) {
                         Text("Nessuno").tag(MuscleGroup?.none)
                         ForEach(MuscleGroup.allCases, id: \.self) { Text($0.displayName).tag(MuscleGroup?.some($0)) }
                     }
+                    .frame(minHeight: 44)
+                } header: {
+                    Eyebrow("Gruppo muscolare")
                 }
+                .hfListRow()
                 Section {
                     Toggle("Recupero personalizzato", isOn: $customRest)
+                        .tint(palette.accent)
+                        .frame(minHeight: 44)
                     if customRest {
-                        Stepper(value: $restSeconds, in: 0...900, step: 15) {
+                        HStack(spacing: Spacing.m) {
                             Text(Formatting.rest(restSeconds))
+                                .font(.system(.title3, design: .rounded, weight: .heavy).monospacedDigit())
+                                .foregroundStyle(palette.textPrimary)
+                            Spacer(minLength: Spacing.s)
+                            StepButton(systemImage: "minus", label: "Recupero meno", isEnabled: restSeconds > 0) {
+                                restSeconds = max(restSeconds - 15, 0)
+                            }
+                            StepButton(systemImage: "plus", label: "Recupero più", isEnabled: restSeconds < 900) {
+                                restSeconds = min(restSeconds + 15, 900)
+                            }
                         }
                     }
                 } footer: {
                     Text("Se spento si usa il recupero predefinito delle Impostazioni.")
                 }
+                .hfListRow()
                 if let exercise {
                     Section {
                         Button("Archivia esercizio", systemImage: "archivebox") {
                             viewModel.archive(exercise)
                             dismiss()
                         }
+                        .font(.hfHeadline)
+                        .foregroundStyle(palette.textPrimary)
                         .frame(minHeight: 44)
                         Button("Elimina esercizio", systemImage: "trash", role: .destructive) {
                             viewModel.requestDelete(exercise)
                         }
+                        .font(.hfHeadline)
+                        .foregroundStyle(palette.destructive)
                         .frame(minHeight: 44)
                     } footer: {
                         Text("Un esercizio già usato in un allenamento non si elimina: si archivia e resta nello storico.")
                     }
+                    .hfListRow()
                 }
                 if let message = viewModel.errorMessage {
-                    Section { Text(message).foregroundStyle(.red) }
+                    Section { Label(message, systemImage: "exclamationmark.triangle.fill").foregroundStyle(palette.destructive) }
+                        .hfListRow()
                 }
             }
+            .hfScreenBackground()
             .exerciseDeletionDialogs(viewModel) { dismiss() }
             .navigationTitle(exercise == nil ? "Nuovo" : "Modifica")
             .navigationBarTitleDisplayMode(.inline)

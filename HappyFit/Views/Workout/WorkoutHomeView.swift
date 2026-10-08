@@ -53,7 +53,7 @@ struct WorkoutHomeView: View {
                             HStack(alignment: .center, spacing: Spacing.m) {
                                 VStack(alignment: .leading, spacing: Spacing.xs) {
                                     Text(template.name).font(.hfTitle).foregroundStyle(palette.textPrimary)
-                                    Text("\(template.exercises.count) esercizi")
+                                    Text(Formatting.count(template.exercises.count, "esercizio", "esercizi"))
                                         .font(.subheadline).foregroundStyle(palette.textSecondary)
                                     MuscleChipsView(exercises: template.sortedExercises.map(\.exercise))
                                 }
