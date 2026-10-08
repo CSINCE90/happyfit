@@ -143,6 +143,17 @@ final class ConnectivityWorkoutRemoteTests: XCTestCase {
         XCTAssertEqual(setA(remote)?.weightKg, 70)
     }
 
+    func testReceivingStatesNeverSendsCommands() {
+        // Nessun ciclo possibile sul Watch: ricevere stati (anche con recupero) non genera invii di comandi.
+        let remote = makeRemote()
+        for revision in 1...20 {
+            remote.apply(state(revision: Int64(revision), restEnd: now.addingTimeInterval(30)))
+        }
+        remote.apply(state(revision: 21, session: false))
+        XCTAssertTrue(transport.sentCommands.isEmpty)
+        XCTAssertTrue(transport.queuedCommands.isEmpty)
+    }
+
     func testSettingsComeFromTheState() {
         let remote = makeRemote()
         XCTAssertEqual(remote.weightStep, 2.5)

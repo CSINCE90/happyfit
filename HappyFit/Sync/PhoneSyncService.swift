@@ -32,6 +32,8 @@ final class PhoneSyncService: ConnectivityTransportDelegate, RestSyncing {
     private var trailing: Task<Void, Never>?
     private var observers: [NSObjectProtocol] = []
     private var lastTransportPublish = Date.distantPast
+    private var lastSentState: SyncState?
+    private(set) var skippedDuplicates = 0
     private var lastSettings: SyncSettings
     private var previousCache: (key: [UUID], value: [UUID: [SetEntryDTO]])?
 
@@ -80,6 +82,10 @@ final class PhoneSyncService: ConnectivityTransportDelegate, RestSyncing {
 
     func register(_ viewModel: ActiveWorkoutViewModel) {
         activeViewModel = viewModel
+        // Dopo "Riduci" la schermata si ricrea: riprende il recupero in corso, solo se la fine è ancora futura.
+        if let end = restEnd, let total = restTotal, end > now() {
+            viewModel.applyRemoteRest(endDate: end, totalSeconds: total)
+        }
     }
 
     func restChanged(endDate: Date?, totalSeconds: Int?) {
@@ -114,10 +120,16 @@ final class PhoneSyncService: ConnectivityTransportDelegate, RestSyncing {
         guard transport.isActivated else { return }
         let state = buildState()
         lastState = state
+        // Contenuto identico all'ultimo inviato: niente invio (salvo un Watch appena raggiungibile, che va aggiornato).
+        if reason != "trasporto", let last = lastSentState, state.hasSameContent(as: last) {
+            skippedDuplicates += 1
+            return
+        }
         guard transport.canSendInBackground || transport.isReachable, let envelope = SyncCodec.stateEnvelope(state) else { return }
         if transport.canSendInBackground { transport.updateContext(envelope) }
         // Con il Watch raggiungibile si manda anche subito: il contesto può arrivare con qualche ritardo.
         if transport.isReachable { transport.sendMessage(envelope, reply: nil, failure: nil) }
+        lastSentState = state
         log.notice("stato pubblicato (\(reason, privacy: .public)) rev=\(state.revision) sessione=\(state.session?.id.uuidString ?? "nessuna", privacy: .public)")
     }
 

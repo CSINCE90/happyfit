@@ -22,6 +22,14 @@ struct SyncState: Codable, Equatable, Sendable {
     var restTotalSeconds: Int?
     var settings: SyncSettings
 
+    /// Vero se il contenuto è identico a quello di `other`, esclusi revisione e orario d'invio.
+    func hasSameContent(as other: SyncState) -> Bool {
+        var a = self, b = other
+        a.revision = 0; b.revision = 0
+        a.sentAt = .distantPast; b.sentAt = .distantPast
+        return a == b
+    }
+
     /// Copia senza lo storico "ultima volta": più leggera, per quando lo stato completo supera il tetto prudente.
     func trimmed() -> SyncState {
         var copy = self

@@ -36,6 +36,16 @@ final class CRUDUITests: XCTestCase {
         return row.staticTexts.allElementsBoundByIndex.map(\.label).joined(separator: "|")
     }
 
+    /// Attende (senza pause fisse) che la riga "Serie completate" mostri il conteggio atteso.
+    private func waitForCompletedSets(_ app: XCUIApplication, count: Int, timeout: TimeInterval = 5) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if completedSetsRow(app).hasSuffix(", \(count)") { return true }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        }
+        return false
+    }
+
     // MARK: - Schede
 
     func testDeleteTemplateFromVisibleRowMenu() {
@@ -184,7 +194,7 @@ final class CRUDUITests: XCTestCase {
         let app = launch("history")
         app.cells.firstMatch.tap()
         XCTAssertTrue(app.staticTexts["Serie completate"].waitForExistence(timeout: 5))
-        XCTAssertTrue(completedSetsRow(app).hasSuffix(", 10"), completedSetsRow(app))
+        XCTAssertTrue(waitForCompletedSets(app, count: 10), completedSetsRow(app))
 
         // Rinomina
         app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Nome'")).firstMatch.tap()
@@ -197,8 +207,7 @@ final class CRUDUITests: XCTestCase {
 
         // Aggiungi una serie al primo esercizio
         app.buttons["Aggiungi serie"].firstMatch.tap()
-        sleep(1)
-        XCTAssertTrue(completedSetsRow(app).hasSuffix(", 11"), completedSetsRow(app))
+        XCTAssertTrue(waitForCompletedSets(app, count: 11), completedSetsRow(app))
 
         // Elimina una serie dal foglio di correzione, con conferma
         app.buttons.matching(NSPredicate(format: "label CONTAINS '×'")).firstMatch.tap()
@@ -208,8 +217,7 @@ final class CRUDUITests: XCTestCase {
         let confirm = app.buttons["Elimina serie"].firstMatch
         XCTAssertTrue(confirm.waitForExistence(timeout: 3))
         confirm.tap()
-        sleep(1)
-        XCTAssertTrue(completedSetsRow(app).hasSuffix(", 10"), completedSetsRow(app))
+        XCTAssertTrue(waitForCompletedSets(app, count: 10), completedSetsRow(app))
     }
 
     func testDeleteWholeHistorySession() {

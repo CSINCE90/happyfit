@@ -15,6 +15,8 @@ struct SessionView: View {
                     .foregroundStyle(palette.textPrimary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
+                    // Un po' di margine a destra: il nome non finisce sotto gli indicatori di pagina.
+                    .padding(.trailing, Spacing.s)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
 

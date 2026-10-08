@@ -129,8 +129,7 @@ final class PhoneSyncServiceTests: XCTestCase {
         try workout.completeSet(set(0, 0), at: base)
         try workout.finish(session, at: base.addingTimeInterval(10))
         service.handle(late)
-        XCTAssertFalse(set(0, 0).isCompleted == false && session.completedSetCount > 1)
-        XCTAssertEqual(session.completedSetCount, 1)
+        XCTAssertEqual(session.completedSetCount, 1, "il comando in ritardo non ha completato altre serie")
     }
 
     // MARK: - Comandi: valori e recupero
@@ -276,6 +275,65 @@ final class PhoneSyncServiceTests: XCTestCase {
         service.handle(WatchCommand(sessionID: session.id, sentAt: real, action: .skipRest))
         XCTAssertNil(viewModel.restTimer)
         viewModel.skipRest()
+    }
+
+    // MARK: - Invii identici
+
+    func testIdenticalStateIsNotSentAgain() {
+        service.publishNow(reason: "prova")
+        XCTAssertEqual(transport.contexts.count, 1)
+        for _ in 0..<5 { service.publishNow(reason: "prova") }
+        XCTAssertEqual(transport.contexts.count, 1, "contenuto identico: nessun nuovo invio")
+        XCTAssertEqual(transport.messages.count, 1)
+        XCTAssertEqual(service.skippedDuplicates, 5)
+        try? workout.completeSet(set(0, 0), at: base)
+        service.publishNow(reason: "prova")
+        XCTAssertEqual(transport.contexts.count, 2, "contenuto cambiato: si invia")
+    }
+
+    func testCatalogBurstOutsideSessionDoesNotResend() async throws {
+        service.start()
+        try await Task.sleep(for: .milliseconds(120))
+        let before = transport.contexts.count
+        // Come il caricamento iniziale del catalogo: molti salvataggi che non toccano la sessione aperta.
+        for index in 0..<40 { _ = try workout.createExercise(name: "Esercizio \(index)") }
+        try await Task.sleep(for: .milliseconds(250))
+        XCTAssertEqual(transport.contexts.count, before, "nessun invio: lo stato della sessione non è cambiato")
+    }
+
+    func testRepeatedCommandDoesNotCauseResend() async throws {
+        service.start()
+        try await Task.sleep(for: .milliseconds(120))
+        let command = complete(0, 0)
+        service.handle(command)
+        try await Task.sleep(for: .milliseconds(150))
+        let after = transport.contexts.count
+        service.handle(command)
+        service.handle(complete(0, 0))
+        try await Task.sleep(for: .milliseconds(150))
+        XCTAssertEqual(transport.contexts.count, after, "comandi ripetuti o a vuoto non generano invii")
+    }
+
+    // MARK: - "Riduci": il recupero in corso riprende
+
+    func testNewViewModelResumesRunningRest() throws {
+        let real = Date()
+        clockNow = real
+        let defaultsForVM = UserDefaults(suiteName: "vm-\(UUID().uuidString)")!
+        ActiveWorkoutViewModel.defaultRestSync = service
+        defer { ActiveWorkoutViewModel.defaultRestSync = nil }
+        var first: ActiveWorkoutViewModel? = ActiveWorkoutViewModel(session: session, context: context, defaults: defaultsForVM)
+        first?.startRest(seconds: 60, now: real)
+        first = nil   // "Riduci": la schermata e il suo ViewModel spariscono
+
+        let second = ActiveWorkoutViewModel(session: session, context: context, defaults: defaultsForVM)
+        XCTAssertEqual(second.restTimer?.endDate, real.addingTimeInterval(60), "il recupero in corso riprende")
+        second.skipRest()
+
+        // Recupero già scaduto: il nuovo ViewModel non ne mostra alcuno.
+        service.restChanged(endDate: real.addingTimeInterval(-1), totalSeconds: 60)
+        let third = ActiveWorkoutViewModel(session: session, context: context, defaults: defaultsForVM)
+        XCTAssertNil(third.restTimer)
     }
 
     func testViewModelWithoutServiceBehavesAsBefore() {
