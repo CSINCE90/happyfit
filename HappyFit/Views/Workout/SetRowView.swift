@@ -30,7 +30,6 @@ struct SetRowView: View {
             }
         }
         .padding(.vertical, 6)
-        .opacity(entry.isCompleted ? 0.75 : 1)
         // Vibrazione leggera al tocco: alla spunta e a ogni cambio di peso o ripetizioni (spenta con "Riduci movimento").
         .sensoryFeedback(trigger: entry.isCompleted) { _, completed in
             reduceMotion || !completed ? nil : .impact(weight: .light)
@@ -41,14 +40,14 @@ struct SetRowView: View {
 
     private var weightControl: some View {
         ValueControl(
-            value: Formatting.weight(entry.weightKg), unit: "kg", label: "Peso",
+            value: Formatting.weight(entry.weightKg), unit: "kg", label: "Peso", dimmed: entry.isCompleted,
             onMinus: { onWeight(-1) }, onPlus: { onWeight(1) }, onEdit: onEditWeight
         )
     }
 
     private var repsControl: some View {
         ValueControl(
-            value: "\(entry.reps)", unit: "rip", label: "Ripetizioni",
+            value: "\(entry.reps)", unit: "rip", label: "Ripetizioni", dimmed: entry.isCompleted,
             onMinus: { onReps(-1) }, onPlus: { onReps(1) }, onEdit: onEditReps
         )
     }
@@ -63,7 +62,7 @@ struct SetRowView: View {
         } label: {
             HStack(spacing: Spacing.s) {
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("Serie \(index)").font(.hfHeadline).foregroundStyle(palette.textPrimary)
+                    Text("Serie \(index)").font(.hfHeadline).foregroundStyle(entry.isCompleted ? palette.completedText : palette.textPrimary)
                     // Il tipo si legge da icona e parola, non dal colore.
                     Label {
                         Text(entry.type.displayName)
@@ -71,11 +70,11 @@ struct SetRowView: View {
                         if let symbol = entry.type.symbol { Image(systemName: symbol) }
                     }
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(palette.textSecondary)
+                    .foregroundStyle(entry.isCompleted ? palette.completedSecondary : palette.textSecondary)
                 }
                 .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 0)
-                Image(systemName: "chevron.up.chevron.down").font(.caption).foregroundStyle(palette.textSecondary)
+                Image(systemName: "chevron.up.chevron.down").font(.caption).foregroundStyle(entry.isCompleted ? palette.completedSecondary : palette.textSecondary)
             }
             .padding(.horizontal, Spacing.m)
             .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
@@ -104,28 +103,30 @@ struct ValueControl: View {
     let value: String
     let unit: String
     let label: String
+    /// Riga di una serie completata: colori attenuati (non opacità, per mantenere il contrasto).
+    var dimmed = false
     let onMinus: () -> Void
     let onPlus: () -> Void
     let onEdit: () -> Void
 
     var body: some View {
         HStack(spacing: 6) {
-            StepButton(systemImage: "minus", label: "\(label) meno", action: onMinus)
+            StepButton(systemImage: "minus", label: "\(label) meno", dimmed: dimmed, action: onMinus)
             Button(action: onEdit) {
                 VStack(spacing: 0) {
                     Text(value)
                         .font(.hfNumber)
-                        .foregroundStyle(palette.textPrimary)
+                        .foregroundStyle(dimmed ? palette.completedText : palette.textPrimary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.5)
-                    Eyebrow(unit).foregroundStyle(palette.textSecondary)
+                    Eyebrow(unit).foregroundStyle(dimmed ? palette.completedSecondary : palette.textSecondary)
                 }
                 .frame(maxWidth: .infinity, minHeight: 48)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel("\(label) \(value) \(unit)")
-            StepButton(systemImage: "plus", label: "\(label) più", action: onPlus)
+            StepButton(systemImage: "plus", label: "\(label) più", dimmed: dimmed, action: onPlus)
         }
         .frame(maxWidth: .infinity)
     }
@@ -136,13 +137,14 @@ struct StepButton: View {
     let systemImage: String
     let label: String
     var isEnabled = true
+    var dimmed = false
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             Image(systemName: systemImage)
         }
-        .buttonStyle(.hfStep)
+        .buttonStyle(StepCircleButtonStyle(dimmed: dimmed))
         .disabled(!isEnabled)
         .opacity(isEnabled ? 1 : 0.35)
         .accessibilityLabel(label)

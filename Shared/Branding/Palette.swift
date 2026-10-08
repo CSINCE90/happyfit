@@ -106,6 +106,15 @@ struct Palette: Sendable {
     /// insieme leggibile (≥ 4.5:1) e distinta dai chip profondi dei gruppi: si usa il testo scuro, e il colore
     /// vivo resta solo sulle forme piene (pulsanti, cerchio ✓, progresso, anello, filetto, filtro, selettore).
     var accentText: Color { isDark ? accentPreset.fill : textPrimary }
+    /// Voce selezionata della tab bar. Eccezione dichiarata alla regola "testo d'accento scuro": nel tema chiaro
+    /// usa la variante scura dell'accento, perché è l'indicazione di selezione di una barra di navigazione.
+    var tabSelection: Color { isDark ? accentPreset.fill : accentPreset.textOnLight }
+
+    /// Serie completata: testo e testo secondario "attenuati" con colori pieni, non con l'opacità
+    /// (al 75% il secondario scendeva a 4.0:1 nel tema chiaro). Reggono ≥ 4.5:1 su card e superficie rialzata.
+    var completedText: Color { isDark ? Color(hex: 0xBEC0C3) : Color(hex: 0x484A4C) }
+    var completedSecondary: Color { isDark ? Color(hex: 0x878F9A) : Color(hex: 0x5F6874) }
+
     /// Bordo delle forme piene d'accento: nel tema chiaro i colori vivaci su bianco hanno poco contrasto
     /// di forma, quindi si contornano con la variante scura (nel tema scuro non serve).
     var accentOutline: Color { isDark ? .clear : accentPreset.textOnLight }
@@ -131,9 +140,10 @@ struct Palette: Sendable {
             case .core: return Color(hex: 0x0E6B73)
             }
         } else {
-            // Stesse tinte profonde del tema scuro; il petto è più verso il lampone per staccarsi dal rosso distruttivo.
+            // Tinte profonde come nel tema scuro; il petto è un vino scuro, lontano sia dal rosso distruttivo
+            // sia dal braccia (ΔE ≥ 20.6 da tutti i vicini).
             switch group {
-            case .petto: return Color(hex: 0x9D174D)
+            case .petto: return Color(hex: 0x731A30)
             case .schiena: return Color(hex: 0x1E40AF)
             case .gambe: return Color(hex: 0x15803D)
             case .spalle: return Color(hex: 0x9A4A0B)

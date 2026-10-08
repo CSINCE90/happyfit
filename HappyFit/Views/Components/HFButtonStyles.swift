@@ -49,11 +49,13 @@ struct SecondaryButtonStyle: ButtonStyle {
 struct StepCircleButtonStyle: ButtonStyle {
     @Environment(\.palette) private var palette
     @Environment(\.isEnabled) private var isEnabled
+    /// Riga di una serie completata: simbolo attenuato.
+    var dimmed = false
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.system(.headline, design: .rounded, weight: .black))
-            .foregroundStyle(palette.textPrimary)
+            .foregroundStyle(dimmed ? palette.completedText : palette.textPrimary)
             .frame(width: 48, height: 48)
             .background(palette.raised, in: Circle())
             .contentShape(Circle())

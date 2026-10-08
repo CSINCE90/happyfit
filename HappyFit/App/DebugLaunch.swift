@@ -36,6 +36,7 @@ extension DebugLaunch {
 
 @MainActor
 struct DebugScreenView: View {
+    @Environment(\.palette) private var palette
     let name: String
     let container: ModelContainer
 
@@ -58,7 +59,8 @@ struct DebugScreenView: View {
 
     /// Mostra la schermata dentro una tab bar, per vedere le sovrapposizioni con la barra fissa.
     private func inTabBar<V: View>(@ViewBuilder _ view: () -> V) -> some View {
-        TabView { view().tabItem { Label("Schede", systemImage: "list.bullet.rectangle") } }
+        TabView { view().tint(palette.accentText).tabItem { Label("Schede", systemImage: "list.bullet.rectangle") } }
+            .tint(palette.tabSelection)
     }
 
     @ViewBuilder
