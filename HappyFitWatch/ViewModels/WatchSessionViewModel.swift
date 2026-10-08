@@ -19,8 +19,8 @@ final class WatchSessionViewModel {
     private let notifications: any RestNotificationScheduling
     private let defaults: UserDefaults
 
-    /// Incrementi della Crown: valori di partenza (nello step 5 arriveranno dalle Impostazioni dell'iPhone).
-    var weightStep: Double = 2.5
+    /// Incremento del peso della Crown: lo sceglie l'utente sull'iPhone (2,5 kg finché non arriva una scelta).
+    var weightStep: Double { remote.weightStep }
     var repsStep: Int = 1
 
     /// Esercizio scelto dall'elenco (nil = quello corrente).
@@ -41,6 +41,10 @@ final class WatchSessionViewModel {
     static let permissionExplainedKey = "restNotificationExplained"
     private var tickTask: Task<Void, Never>?
     private var restExerciseName: String?
+    /// Ultima modifica del recupero fatta qui: lo stato dell'iPhone vale solo se è successivo.
+    private var localRestChangedAt = Date.distantPast
+    /// Dopo una modifica locale, uno stato dell'iPhone "senza recupero" nei primi secondi può essere solo in ritardo.
+    static let remoteRestGrace: TimeInterval = 5
 
     init(remote: any WorkoutRemote, notifications: any RestNotificationScheduling, defaults: UserDefaults = .standard) {
         self.remote = remote
@@ -153,8 +157,10 @@ final class WatchSessionViewModel {
 
     // MARK: - Timer di recupero
 
+    /// Avvia il recupero in locale. L'iPhone lo ricava da "completa serie" (stessa serie, stesso orario d'invio).
     func startRest(seconds: Int, now: Date = Date()) {
         guard seconds > 0 else { return skipRest() }
+        localRestChangedAt = now
         restTimer = RestTimer(seconds: seconds, now: now)
         restRemainingSeconds = seconds
         restExerciseName = shownExercise?.exercise.name
@@ -162,17 +168,27 @@ final class WatchSessionViewModel {
         notificationTask = Task { await prepareNotification() }
     }
 
+    /// ±15 s: aggiorna il timer locale e comunica all'iPhone la nuova fine come orario assoluto (idempotente).
     func addRest(seconds: Int, now: Date = Date()) {
         guard var timer = restTimer else { return }
         timer.add(seconds: seconds)
         restTimer = timer
+        localRestChangedAt = now
         tick(now: now)
         if let current = restTimer {
             notifications.schedule(at: current.endDate, exerciseName: restExerciseName)
+            remote.setRestEnd(endDate: current.endDate, totalSeconds: current.totalSeconds)
         }
     }
 
-    func skipRest() {
+    /// Salta il recupero: lo annulla qui (e l'avviso) e lo comunica all'iPhone.
+    func skipRest(now: Date = Date()) {
+        localRestChangedAt = now
+        clearRestLocally()
+        remote.skipRest()
+    }
+
+    private func clearRestLocally() {
         restTimer = nil
         restRemainingSeconds = 0
         tickTask?.cancel()
@@ -180,16 +196,35 @@ final class WatchSessionViewModel {
         notifications.cancel()
     }
 
-    /// Aggiorna il conto alla rovescia; a zero vibra (app in primo piano) e chiude il timer.
+    /// Aggiorna il conto alla rovescia; a zero vibra (app in primo piano) e chiude il timer
+    /// (a fine tempo l'iPhone ha già la stessa scadenza: nessun comando da inviare).
     func tick(now: Date = Date()) {
         guard let timer = restTimer else { return }
         if timer.isFinished(at: now) {
-            skipRest()
+            clearRestLocally()
             onRestFinished()
         } else {
             restRemainingSeconds = timer.remainingSeconds(at: now)
         }
     }
+
+    /// Recupero come lo comunica l'iPhone (partito da lì, o ±15 da lì): vale solo se lo stato è successivo
+    /// all'ultima modifica fatta qui; uno stato "senza recupero" subito dopo una modifica locale si ignora.
+    func adoptRemoteRest(now: Date = Date()) {
+        guard let rest = remote.restState, rest.asOf > localRestChangedAt else { return }
+        if let end = rest.endDate, let total = rest.totalSeconds, end > now {
+            guard restTimer?.endDate != end else { return }
+            restTimer = RestTimer(seconds: total, now: end.addingTimeInterval(-TimeInterval(total)))
+            restRemainingSeconds = restTimer?.remainingSeconds(at: now) ?? 0
+            restExerciseName = restExerciseName ?? shownExercise?.exercise.name
+            startTicking()
+        } else if restTimer != nil, now.timeIntervalSince(localRestChangedAt) > Self.remoteRestGrace {
+            clearRestLocally()
+        }
+    }
+
+    /// Cambia quando lo stato dell'iPhone cambia il recupero (la vista lo osserva per chiamare `adoptRemoteRest`).
+    var remoteRestVersion: RemoteRest? { remote.restState }
 
     /// Risposta alla spiegazione: "Consenti" mostra la richiesta di sistema, "Non ora" resta solo la vibrazione in primo piano.
     func answerPermission(allow: Bool) async {

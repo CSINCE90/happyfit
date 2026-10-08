@@ -59,3 +59,38 @@ struct PermissionExplanationView: View {
         .presentationBackground(palette.background)
     }
 }
+
+/// Fascia "iPhone non raggiungibile": icona e testo (non solo colore), su una riga sola per non togliere spazio
+/// all'esercizio. Se il testo intero non ci sta, si passa a varianti più corte (l'etichetta vocale resta completa).
+struct OfflineBanner: View {
+    @Environment(\.palette) private var palette
+    let lastUpdate: Date?
+
+    private var time: String? {
+        lastUpdate?.formatted(date: .omitted, time: .shortened)
+    }
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            line(time.map { "iPhone non raggiungibile · \($0)" } ?? "iPhone non raggiungibile")
+            line(time.map { "iPhone assente · \($0)" } ?? "iPhone assente")
+            line(time.map { "Offline · \($0)" } ?? "Offline")
+            line(time ?? "Offline")
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, Spacing.s)
+        .padding(.vertical, Spacing.xs)
+        // Lo sfondo copre solo la riga (non l'area dell'ora): lascia più spazio all'esercizio.
+        .background(palette.raised, ignoresSafeAreaEdges: [])
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(time.map { "iPhone non raggiungibile. Ultimo aggiornamento alle \($0)" } ?? "iPhone non raggiungibile")
+    }
+
+    private func line(_ text: String) -> some View {
+        Label(text, systemImage: "iphone.slash")
+            .font(.system(.footnote, design: .rounded, weight: .semibold))
+            .foregroundStyle(palette.textPrimary)
+            .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
+    }
+}

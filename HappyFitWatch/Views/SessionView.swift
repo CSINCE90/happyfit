@@ -7,14 +7,27 @@ struct SessionView: View {
     @FocusState private var crownFocused: Bool
 
     var body: some View {
-        VStack(spacing: Spacing.s) {
-            // Se lo spazio non basta: prima sparisce "ultima volta", poi i valori si rimpiccioliscono.
+        VStack(spacing: Spacing.xs) {
+            // Il nome dell'esercizio resta sempre visibile, su una riga.
+            if let exercise = viewModel.shownExercise {
+                Text(exercise.exercise.name)
+                    .font(.hfHeadline)
+                    .foregroundStyle(palette.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            // Se lo spazio non basta: prima sparisce "ultima volta", poi i valori si rimpiccioliscono,
+            // poi il progresso, poi (ultima risorsa) l'etichetta della serie.
             // Il pulsante "Completa serie" resta sempre fuori da questa scelta, quindi sempre visibile.
             ViewThatFits(in: .vertical) {
-                details(showPrevious: true, valueFont: .hfNumber)
-                details(showPrevious: false, valueFont: .hfNumber)
-                details(showPrevious: false, valueFont: .system(.title3, design: .rounded, weight: .black).monospacedDigit())
-                details(showPrevious: false, valueFont: .system(.headline, design: .rounded, weight: .black).monospacedDigit(), compactHeader: true)
+                lower(label: true, progress: true, previous: true, valueFont: .hfNumber)
+                lower(label: true, progress: true, previous: false, valueFont: .hfNumber)
+                lower(label: true, progress: true, previous: false, valueFont: .system(.title3, design: .rounded, weight: .black).monospacedDigit())
+                lower(label: true, progress: false, previous: false, valueFont: .system(.title3, design: .rounded, weight: .black).monospacedDigit())
+                lower(label: true, progress: false, previous: false, valueFont: .system(.headline, design: .rounded, weight: .black).monospacedDigit())
+                lower(label: false, progress: false, previous: false, valueFont: .system(.headline, design: .rounded, weight: .black).monospacedDigit())
             }
             .frame(maxHeight: .infinity, alignment: .top)
 
@@ -36,20 +49,19 @@ struct SessionView: View {
     }
 
     @ViewBuilder
-    private func details(showPrevious: Bool, valueFont: Font, compactHeader: Bool = false) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.xs) {
+    private func lower(label: Bool, progress: Bool, previous: Bool, valueFont: Font) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
             if let exercise = viewModel.shownExercise {
-                Text(exercise.exercise.name)
-                    .font(compactHeader ? .hfHeadline : .hfTitle)
-                    .foregroundStyle(palette.textPrimary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-                Text(viewModel.setLabel)
-                    .font(.system(.footnote, design: .rounded, weight: .semibold))
-                    .foregroundStyle(palette.textSecondary)
-                    .lineLimit(1)
-                let progress = SessionLogic.progress(exercise)
-                WatchSetProgress(completed: progress.completed, total: progress.total)
+                if label {
+                    Text(viewModel.setLabel)
+                        .font(.system(.footnote, design: .rounded, weight: .semibold))
+                        .foregroundStyle(palette.textSecondary)
+                        .lineLimit(1)
+                }
+                if progress {
+                    let progress = SessionLogic.progress(exercise)
+                    WatchSetProgress(completed: progress.completed, total: progress.total)
+                }
             }
             if let set = viewModel.shownSet {
                 HStack(spacing: Spacing.s) {
@@ -65,12 +77,12 @@ struct SessionView: View {
             }
             if let field = viewModel.selectedField {
                 // Dice cosa sta cambiando la Crown (al posto dell'ultima volta).
-                Text(field == .weight ? "Corona: peso ±2,5 kg" : "Corona: ripetizioni ±1")
+                Text(field == .weight ? "Corona: peso ±\(WatchSessionViewModel.weightText(viewModel.weightStep)) kg" : "Corona: ripetizioni ±1")
                     .font(.system(.footnote, design: .rounded, weight: .bold))
                     .foregroundStyle(palette.accentText)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
-            } else if showPrevious, let previous = viewModel.previousSummary {
+            } else if previous, let previous = viewModel.previousSummary {
                 Text(previous)
                     .font(.system(.footnote, design: .rounded, weight: .semibold).monospacedDigit())
                     .foregroundStyle(palette.textSecondary)

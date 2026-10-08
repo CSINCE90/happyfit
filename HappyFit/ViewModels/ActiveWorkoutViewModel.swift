@@ -27,11 +27,19 @@ final class ActiveWorkoutViewModel {
 
     private var tickTask: Task<Void, Never>?
 
+    /// Aggancio opzionale alla sincronizzazione del recupero con il Watch. Nil per impostazione predefinita:
+    /// senza servizio (test, anteprime, nessun Watch) il comportamento è quello di sempre.
+    weak var restSync: (any RestSyncing)?
+    /// Servizio che l'app imposta all'avvio; resta nil nei test.
+    static var defaultRestSync: (any RestSyncing)?
+
     init(session: WorkoutSession, context: ModelContext, defaults: UserDefaults = .standard) {
         self.session = session
         self.service = WorkoutService(context: context)
         self.defaults = defaults
         reloadPrevious()
+        restSync = Self.defaultRestSync
+        restSync?.register(self)
     }
 
     var weightStep: Double { AppSettings.weightStep(defaults) }
@@ -144,6 +152,7 @@ final class ActiveWorkoutViewModel {
         restTimer = RestTimer(seconds: seconds, now: now)
         restRemainingSeconds = seconds
         startTicking()
+        restSync?.restChanged(endDate: restTimer?.endDate, totalSeconds: restTimer?.totalSeconds)
     }
 
     func skipRest() {
@@ -151,6 +160,22 @@ final class ActiveWorkoutViewModel {
         restRemainingSeconds = 0
         tickTask?.cancel()
         tickTask = nil
+        restSync?.restChanged(endDate: nil, totalSeconds: nil)
+    }
+
+    /// Recupero avviato, cambiato o saltato dal Watch: stesso timer, senza riavvisare il servizio (niente eco).
+    func applyRemoteRest(endDate: Date?, totalSeconds: Int?, now: Date = Date()) {
+        guard let endDate, let totalSeconds, endDate > now else {
+            restTimer = nil
+            restRemainingSeconds = 0
+            tickTask?.cancel()
+            tickTask = nil
+            return
+        }
+        let timer = RestTimer(seconds: totalSeconds, now: endDate.addingTimeInterval(-TimeInterval(totalSeconds)))
+        restTimer = timer
+        restRemainingSeconds = timer.remainingSeconds(at: now)
+        startTicking()
     }
 
     func addRest(seconds: Int, now: Date = Date()) {
@@ -158,6 +183,7 @@ final class ActiveWorkoutViewModel {
         timer.add(seconds: seconds)
         restTimer = timer
         tick(now: now)
+        restSync?.restChanged(endDate: restTimer?.endDate, totalSeconds: restTimer?.totalSeconds)
     }
 
     /// Aggiorna il conto alla rovescia; a zero vibra e chiude il timer.

@@ -1,6 +1,7 @@
 #if DEBUG
 import Foundation
 import SwiftUI
+import OSLog
 
 /// Solo collaudo: `-debugScreen <nome>` apre una schermata con dati di esempio. Non esiste in Release.
 /// Senza argomento l'app mostra la sessione di esempio.
@@ -19,6 +20,20 @@ enum WatchDebugLaunch {
         return args[index + 1] == "ax" ? .accessibility3 : .large
     }
 
+    /// `-debugCompleteAfter N`: dopo N secondi completa la serie mostrata come farebbe un tocco sul Watch.
+    static func scheduleAutoCompleteIfRequested(viewModel: WatchSessionViewModel) {
+        let args = CommandLine.arguments
+        guard let index = args.firstIndex(of: "-debugCompleteAfter"), args.indices.contains(index + 1),
+              let seconds = Double(args[index + 1]) else { return }
+        let log = Logger(subsystem: "com.csince90.happyfit", category: "sync")
+        log.notice("WATCH-DEBUG completamento automatico programmato tra \(seconds, privacy: .public) s")
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(seconds))
+            log.notice("WATCH-DEBUG completa serie alle \(Date().timeIntervalSince1970, privacy: .public) schermata=\(String(describing: viewModel.screen), privacy: .public)")
+            viewModel.completeShownSet()
+        }
+    }
+
     static func makeViewModel() -> WatchSessionViewModel {
         let name = screen
         // Nelle schermate di collaudo niente richiesta di permesso reale (tranne "permission").
@@ -28,7 +43,9 @@ enum WatchDebugLaunch {
         case "done": WatchSampleData.completedSession
         default: WatchSampleData.session
         }
-        let viewModel = WatchSessionViewModel(remote: InMemoryWorkoutRemote(session: session), notifications: notifications)
+        let remote = InMemoryWorkoutRemote(session: session)
+        if name == "offline" { remote.connection = .offline(lastUpdate: Date().addingTimeInterval(-300)) }
+        let viewModel = WatchSessionViewModel(remote: remote, notifications: notifications)
         switch name {
         case "crown": viewModel.select(.weight)
         case "rest": viewModel.startRest(seconds: 90)
