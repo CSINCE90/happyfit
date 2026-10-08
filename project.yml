@@ -58,6 +58,20 @@ targets:
         SKIP_INSTALL: YES
         ENABLE_PREVIEWS: YES
 
+  HappyFitWatchTests:
+    type: bundle.unit-test
+    platform: watchOS
+    sources:
+      - HappyFitWatchTests
+    dependencies:
+      - target: HappyFitWatch
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.csince90.happyfit.watchkitapp.tests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/HappyFitWatch.app/HappyFitWatch
+        BUNDLE_LOADER: $(TEST_HOST)
+
   HappyFitTests:
     type: bundle.unit-test
     platform: iOS
@@ -97,6 +111,10 @@ schemes:
     build:
       targets:
         HappyFitWatch: all
+        HappyFitWatchTests: [test]
+    test:
+      targets:
+        - HappyFitWatchTests
   HappyFitUI:
     build:
       targets:
